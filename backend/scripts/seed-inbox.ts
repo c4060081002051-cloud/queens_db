@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./loadBackendEnv.js";
 import { loadConfig } from "../src/config.js";
 import {
   setupDatabase,

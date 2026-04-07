@@ -1,6 +1,7 @@
-import "dotenv/config";
+import "./loadBackendEnv.js";
 import { loadConfig } from "../src/config.js";
 import { ensureSecuritySchema } from "../src/db/ensureSecuritySchema.js";
+import { ensureDashboardSchema } from "../src/db/ensureDashboardSchema.js";
 import { setupDatabase } from "../src/models/index.js";
 
 /**
@@ -27,6 +28,7 @@ async function main() {
   const sequelize = setupDatabase(config);
   await sequelize.authenticate();
   await ensureSecuritySchema(sequelize);
+  await ensureDashboardSchema(sequelize);
   console.info("[db:sync] Running sequelize.sync({ alter: true })…");
   try {
     await sequelize.sync({ alter: true });

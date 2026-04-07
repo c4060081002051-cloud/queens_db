@@ -80,6 +80,12 @@ export default function App() {
           setProfileError(null);
           return;
         }
+        if (res.status === 503 && data.error === "Database unavailable") {
+          setProfileError(
+            "Could not reach the database. Start MySQL, confirm backend/.env (DB_HOST, DB_USER, DB_PASSWORD, DB_NAME), then run: cd backend && npm run db:sync — or from the repo root: npm run db:sync",
+          );
+          return;
+        }
         setProfileError(
           data.error ?? "Something went wrong. Please try again.",
         );

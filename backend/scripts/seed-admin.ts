@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./loadBackendEnv.js";
 import bcrypt from "bcrypt";
 import { loadConfig } from "../src/config.js";
 import { setupDatabase, User } from "../src/models/index.js";

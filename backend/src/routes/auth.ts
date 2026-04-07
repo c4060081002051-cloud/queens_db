@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import jwt, { type JwtPayload } from "jsonwebtoken";
 import { z } from "zod";
 import type { Config } from "../config.js";
+import { ensureSecuritySchema } from "../db/ensureSecuritySchema.js";
 import { loadUserMeFields } from "../db/loadUserSafe.js";
 import { User, userByEmailCi } from "../models/index.js";
 import {
@@ -169,23 +170,31 @@ export function createAuthRouter(config: Config) {
       if (!Number.isFinite(id)) {
         return res.status(401).json({ error: "Unauthorized" });
       }
+      const jwtFallback = {
+        email: payload.email,
+        role: payload.role,
+      };
+      let fields: Awaited<ReturnType<typeof loadUserMeFields>>;
       try {
-        const fields = await loadUserMeFields(id, {
-          email: payload.email,
-          role: payload.role,
-        });
-        return res.json({
-          user: {
-            sub: payload.sub,
-            email: fields.email,
-            role: fields.role,
-            twoFactorEnabled: fields.twoFactorEnabled,
-          },
-        });
+        fields = await loadUserMeFields(id, jwtFallback);
       } catch (err) {
-        console.error(err);
-        return res.status(503).json({ error: "Database unavailable" });
+        console.error("[auth/me] load user failed; re-running security schema DDL…", err);
+        try {
+          await ensureSecuritySchema(User.sequelize!);
+          fields = await loadUserMeFields(id, jwtFallback);
+        } catch (err2) {
+          console.error(err2);
+          return res.status(503).json({ error: "Database unavailable" });
+        }
       }
+      return res.json({
+        user: {
+          sub: payload.sub,
+          email: fields.email,
+          role: fields.role,
+          twoFactorEnabled: fields.twoFactorEnabled,
+        },
+      });
     } catch {
       return res.status(401).json({ error: "Unauthorized" });
     }

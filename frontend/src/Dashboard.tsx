@@ -5,12 +5,23 @@ import {
   fetchMessages,
   fetchNotifications,
 } from "./api/inbox";
+import {
+  fetchDashboard,
+  type DashboardCalendar,
+  type DashboardLearner,
+  type DashboardPayload,
+} from "./api/dashboard";
 import { AdminLayout, type AdminUser } from "./components/admin/AdminLayout";
 import { InboxDetailView } from "./components/inbox/InboxDetailView";
 import { InboxListView } from "./components/inbox/InboxListView";
 import type { InboxItem } from "./components/admin/headerInboxDemo";
 import { SettingsModesPanel } from "./components/settings/SettingsModesPanel";
-import { demoLearners, type DemoLearner } from "./data/productSpec";
+import { ExpensesAllPage } from "./components/expenses/ExpensesAllPage";
+import { SchoolExpensesPanel } from "./components/expenses/SchoolExpensesPanel";
+import {
+  StudentsSectionPage,
+  type StudentNavSection,
+} from "./components/students/StudentsSectionPage";
 import { useI18n } from "./i18n/I18nProvider";
 import { formatShortAgo } from "./utils/formatShortAgo";
 
@@ -26,7 +37,7 @@ type DashboardProps = {
 const learnerToolbarBtn =
   "rounded-xl bg-gradient-to-br from-[#faf7f0] to-[#ebe4d9] p-2.5 text-[#636e72] shadow-[2px_2px_5px_rgba(200,188,170,0.35),-1px_-1px_4px_rgba(255,255,255,0.9)] transition hover:text-[#5a8faf] active:translate-y-px";
 
-function LearnerProfileCard({ learner }: { learner: DemoLearner }) {
+function LearnerProfileCard({ learner }: { learner: DashboardLearner }) {
   const { t } = useI18n();
   const fields = [
     { label: t("learner.gender"), value: learner.gender },
@@ -158,15 +169,36 @@ function StatCard({
   );
 }
 
-const smsDirectoryStats: {
+const DEFAULT_CHART_POINTS: [number, number][] = [
+  [0, 55],
+  [30, 40],
+  [60, 48],
+  [90, 25],
+  [120, 35],
+  [150, 20],
+  [180, 30],
+  [200, 15],
+];
+
+function buildDirectoryStatCards(
+  stats: DashboardPayload["stats"] | null,
+  loading: boolean,
+): {
   value: string;
   titleKey: string;
   className: string;
   iconTint: string;
   icon: ReactNode;
-}[] = [
+}[] {
+  const v = (n: number | undefined) => {
+    if (loading) return "—";
+    if (n === undefined) return "—";
+    return String(n);
+  };
+  const s = stats;
+  return [
   {
-    value: "8",
+    value: v(s?.totalStudents),
     titleKey: "stat.totalStudents",
     className: "bg-gradient-to-br from-[#fce8e5] via-[#f7d1cd] to-[#efd5d2]",
     iconTint: "bg-gradient-to-br from-[#fad5d0] to-[#f0b8b2] text-[#2d3436]",
@@ -182,7 +214,7 @@ const smsDirectoryStats: {
     ),
   },
   {
-    value: "2",
+    value: v(s?.totalTeachers),
     titleKey: "stat.totalTeachers",
     className: "bg-gradient-to-br from-[#e8f4e9] via-[#d4ead6] to-[#c5e3c8]",
     iconTint: "bg-gradient-to-br from-[#cde8cf] to-[#b8d8ba] text-[#2d3436]",
@@ -197,7 +229,7 @@ const smsDirectoryStats: {
     ),
   },
   {
-    value: "1",
+    value: v(s?.totalParents),
     titleKey: "stat.totalParents",
     className: "bg-gradient-to-br from-[#e8f2fa] via-[#d4e8f5] to-[#c5dff0]",
     iconTint: "bg-gradient-to-br from-[#c9e2f2] to-[#b9d9eb] text-[#2d3436]",
@@ -213,7 +245,7 @@ const smsDirectoryStats: {
     ),
   },
   {
-    value: "2",
+    value: v(s?.totalLibrarians),
     titleKey: "stat.totalLibrarians",
     className: "bg-gradient-to-br from-[#dfe8f5] via-[#c5d4eb] to-[#a8bdd9]",
     iconTint: "bg-gradient-to-br from-[#b9c9e0] to-[#8fa8c9] text-[#2d3436]",
@@ -228,7 +260,7 @@ const smsDirectoryStats: {
     ),
   },
   {
-    value: "1",
+    value: v(s?.totalAccountants),
     titleKey: "stat.totalAccountants",
     className: "bg-gradient-to-br from-[#e5f2e6] via-[#d0e6d2] to-[#b8d8ba]",
     iconTint: "bg-gradient-to-br from-[#b8d8ba] to-[#8fb892] text-[#2d3436]",
@@ -244,7 +276,7 @@ const smsDirectoryStats: {
     ),
   },
   {
-    value: "2",
+    value: v(s?.totalEnquiries),
     titleKey: "stat.totalEnquiries",
     className: "bg-gradient-to-br from-[#fce8e5] via-[#f5d0cc] to-[#e8b8b2]",
     iconTint: "bg-gradient-to-br from-[#f0c4be] to-[#e8a8a2] text-[#2d3436]",
@@ -260,7 +292,7 @@ const smsDirectoryStats: {
     ),
   },
   {
-    value: "0",
+    value: v(s?.allMessages),
     titleKey: "stat.allMessages",
     className: "bg-gradient-to-br from-[#dfe5ee] via-[#c8d3e3] to-[#a8b8ce]",
     iconTint: "bg-gradient-to-br from-[#aebfcf] to-[#8fa0b5] text-[#2d3436]",
@@ -275,7 +307,7 @@ const smsDirectoryStats: {
     ),
   },
   {
-    value: "0",
+    value: v(s?.presentToday),
     titleKey: "stat.presentToday",
     className: "bg-gradient-to-br from-[#e8f2fa] via-[#d4e8f5] to-[#c5dff0]",
     iconTint: "bg-gradient-to-br from-[#b9d9eb] to-[#8bb8d4] text-[#2d3436]",
@@ -286,12 +318,21 @@ const smsDirectoryStats: {
     ),
   },
 ];
+}
 
-function EventScheduleCard() {
+function EventScheduleCard({ calendar }: { calendar: DashboardCalendar | null }) {
   const { t } = useI18n();
-  const monthLabel = "April 2026";
-  const startPad = 3;
-  const daysInMonth = 30;
+  const ym = calendar?.yearMonth ?? "2026-04";
+  const parts = ym.split("-").map(Number);
+  const y = Number.isFinite(parts[0]) ? parts[0] : 2026;
+  const mo = Number.isFinite(parts[1]) ? parts[1] : 4;
+  const monthLabel =
+    calendar?.monthLabel ??
+    new Date(y, mo - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const first = new Date(y, mo - 1, 1);
+  const startPad = first.getDay();
+  const daysInMonth = new Date(y, mo, 0).getDate();
+  const highlight = new Set(calendar?.highlightDays ?? []);
   const cells: (number | null)[] = [...Array(startPad).fill(null)];
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
@@ -312,9 +353,9 @@ function EventScheduleCard() {
             <span key={`e-${i}`} className="aspect-square" />
           ) : (
             <span
-              key={d}
+              key={`${d}-${i}`}
               className={`flex aspect-square items-center justify-center rounded-lg text-[11px] font-semibold ${
-                d === 5
+                highlight.has(d)
                   ? "bg-gradient-to-br from-[#cde8cf] to-[#b8d8ba] text-[#2d3436] shadow-[2px_2px_5px_rgba(120,150,125,0.35)]"
                   : "neo-inset text-[#636e72]"
               }`}
@@ -324,23 +365,21 @@ function EventScheduleCard() {
           ),
         )}
       </div>
-      <p className="mt-3 text-xs text-[#636e72]">{t("dashboard.eventDemo")}</p>
+      <ul className="mt-3 space-y-1 text-xs text-[#636e72]">
+        {(calendar?.events ?? []).slice(0, 4).map((ev) => (
+          <li key={`${ev.date}-${ev.title}`}>
+            <span className="font-semibold text-[#6a9570]">{ev.date}</span> — {ev.title}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-xs text-[#636e72]">{t("dashboard.eventDemo")}</p>
     </section>
   );
 }
 
-function StatisticsChartCard() {
+function StatisticsChartCard({ chartPoints }: { chartPoints: [number, number][] }) {
   const { t } = useI18n();
-  const coords: [number, number][] = [
-    [0, 55],
-    [30, 40],
-    [60, 48],
-    [90, 25],
-    [120, 35],
-    [150, 20],
-    [180, 30],
-    [200, 15],
-  ];
+  const coords = chartPoints.length >= 2 ? chartPoints : DEFAULT_CHART_POINTS;
   const linePts = coords.map(([x, y]) => `${x},${y}`).join(" ");
   const areaPts = `0,80 ${linePts} 200,80`;
 
@@ -374,24 +413,6 @@ function StatisticsChartCard() {
   );
 }
 
-const notices = [
-  {
-    date: "Apr 5, 2026",
-    author: "Head Teacher",
-    text: "Staff meeting moved to Friday 3:00 PM — agenda: term reports and attendance policy.",
-  },
-  {
-    date: "Apr 3, 2026",
-    author: "Admin",
-    text: "Fee statements for Term 2 will be available next week. Parents notified via SMS.",
-  },
-  {
-    date: "Apr 1, 2026",
-    author: "Sports Dept.",
-    text: "Inter-house athletics — volunteers needed for scoring desk.",
-  },
-];
-
 type InboxScreen =
   | { screen: "home" }
   | { screen: "list"; kind: "notifications" | "messages" }
@@ -407,33 +428,6 @@ function mapToHeaderItems(rows: { id: number; title: string; body: string; read:
   }));
 }
 
-const expenseRows = [
-  {
-    id: "EXP-1042",
-    type: "Utilities",
-    amount: "UGX 2,400,000",
-    status: "Paid" as const,
-    email: "accounts@queens.school",
-    date: "2026-04-02",
-  },
-  {
-    id: "EXP-1041",
-    type: "Learning materials",
-    amount: "UGX 890,000",
-    status: "Due" as const,
-    email: "store@queens.school",
-    date: "2026-04-01",
-  },
-  {
-    id: "EXP-1040",
-    type: "Transport fuel",
-    amount: "UGX 1,100,000",
-    status: "Paid" as const,
-    email: "transport@queens.school",
-    date: "2026-03-28",
-  },
-];
-
 export function Dashboard({
   user,
   profileLoading,
@@ -447,6 +441,11 @@ export function Dashboard({
   const [inboxScreen, setInboxScreen] = useState<InboxScreen>({ screen: "home" });
   const [headerNotifications, setHeaderNotifications] = useState<InboxItem[]>([]);
   const [headerMessages, setHeaderMessages] = useState<InboxItem[]>([]);
+  const [dash, setDash] = useState<DashboardPayload | null>(null);
+  const [dashLoading, setDashLoading] = useState(false);
+  const [dashError, setDashError] = useState<string | null>(null);
+  const [mainView, setMainView] = useState<"dashboard" | "expenses" | "students">("dashboard");
+  const [studentSection, setStudentSection] = useState<StudentNavSection>("all");
 
   const refreshHeaderInbox = useCallback(async () => {
     try {
@@ -465,6 +464,37 @@ export function Dashboard({
   useEffect(() => {
     void refreshHeaderInbox();
   }, [refreshHeaderInbox]);
+
+  useEffect(() => {
+    if (settingsPanel === "modes") return;
+    if (inboxScreen.screen !== "home") return;
+    let cancelled = false;
+    setDashLoading(true);
+    setDashError(null);
+    void fetchDashboard({ calendarMonth: "2026-04" })
+      .then((data) => {
+        if (!cancelled) setDash(data);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setDashError(err instanceof Error ? err.message : "Failed to load dashboard");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setDashLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [inboxScreen.screen, settingsPanel]);
+
+  const directoryCards = buildDirectoryStatCards(dash?.stats ?? null, dashLoading);
+  const learners = dash?.learners ?? [];
+  const notices = dash?.notices ?? [];
+  const chartPoints = dash?.chartPoints ?? DEFAULT_CHART_POINTS;
+  const socialTiles = dash?.social ?? [];
+  const kpis = dash?.kpis;
+  const snapshot = dash?.snapshot;
 
   return (
     <AdminLayout
@@ -510,6 +540,7 @@ export function Dashboard({
         setInboxScreen({ screen: "list", kind });
       }}
       onDashboardHome={() => {
+        setMainView("dashboard");
         setSettingsPanel(null);
         setInboxScreen({ screen: "home" });
       }}
@@ -517,12 +548,16 @@ export function Dashboard({
         setInboxScreen({ screen: "home" });
         setSettingsPanel(panel);
       }}
+      onSelectStudentSection={(section) => {
+        setSettingsPanel(null);
+        setInboxScreen({ screen: "home" });
+        setMainView("students");
+        setStudentSection(section);
+      }}
       onAccountUpdated={onAccountUpdated}
     >
       <main className="dashboard-main-padding">
-        {settingsPanel === "modes" ? (
-          <SettingsModesPanel onBack={() => setSettingsPanel(null)} />
-        ) : null}
+        {settingsPanel === "modes" ? <SettingsModesPanel /> : null}
         {settingsPanel === "modes" ? null : inboxScreen.screen !== "home" ? (
           inboxScreen.screen === "list" ? (
             <InboxListView
@@ -550,8 +585,15 @@ export function Dashboard({
               onInboxChanged={refreshHeaderInbox}
             />
           )
+        ) : mainView === "expenses" ? (
+          <ExpensesAllPage />
+        ) : mainView === "students" ? (
+          <StudentsSectionPage section={studentSection} />
         ) : null}
-        {settingsPanel === "modes" || inboxScreen.screen !== "home" ? null : (
+        {settingsPanel === "modes" ||
+        inboxScreen.screen !== "home" ||
+        mainView === "expenses" ||
+        mainView === "students" ? null : (
           <>
         {profileError ? (
           <div
@@ -569,6 +611,15 @@ export function Dashboard({
           </div>
         ) : null}
 
+        {dashError ? (
+          <div
+            className="neo-card mb-6 px-4 py-3 text-sm text-[#2d3436]"
+            role="alert"
+          >
+            {dashError}
+          </div>
+        ) : null}
+
         <section className="mb-6" aria-labelledby="sms-overview-heading">
           <h2
             id="sms-overview-heading"
@@ -578,7 +629,7 @@ export function Dashboard({
           </h2>
           <p className="mb-3 text-xs text-[#636e72]">{t("dashboard.directoryHint")}</p>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {smsDirectoryStats.map((s) => (
+            {directoryCards.map((s) => (
               <StatCard
                 key={s.titleKey}
                 value={s.value}
@@ -592,14 +643,14 @@ export function Dashboard({
         </section>
 
         <div className="mb-6 grid gap-4 lg:grid-cols-2 lg:items-stretch">
-          <EventScheduleCard />
-          <StatisticsChartCard />
+          <EventScheduleCard calendar={dash?.calendar ?? null} />
+          <StatisticsChartCard chartPoints={chartPoints} />
         </div>
 
         <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             title={t("dashboard.dueFees")}
-            value="1,500"
+            value={dashLoading ? "—" : (kpis?.dueFees ?? "—")}
             className="bg-gradient-to-br from-[#fce8e5] via-[#f7d1cd] to-[#efd5d2]"
             iconTint="bg-gradient-to-br from-[#fad5d0] to-[#f0b8b2] text-[#2d3436]"
             icon={
@@ -614,7 +665,7 @@ export function Dashboard({
           />
           <StatCard
             title={t("dashboard.upcomingExams")}
-            value="15"
+            value={dashLoading ? "—" : (kpis?.upcomingExams ?? "—")}
             className="bg-gradient-to-br from-[#e8f4e9] via-[#d4ead6] to-[#c5e3c8]"
             iconTint="bg-gradient-to-br from-[#cde8cf] to-[#b8d8ba] text-[#2d3436]"
             icon={
@@ -629,7 +680,7 @@ export function Dashboard({
           />
           <StatCard
             title={t("dashboard.resultsPublished")}
-            value="08"
+            value={dashLoading ? "—" : (kpis?.resultsPublished ?? "—")}
             className="bg-gradient-to-br from-[#e8f2fa] via-[#d4e8f5] to-[#c5dff0]"
             iconTint="bg-gradient-to-br from-[#c9e2f2] to-[#b9d9eb] text-[#2d3436]"
             icon={
@@ -644,7 +695,7 @@ export function Dashboard({
           />
           <StatCard
             title={t("dashboard.termExpenses")}
-            value="10K"
+            value={dashLoading ? "—" : (kpis?.termExpenses ?? "—")}
             className="bg-gradient-to-br from-[#f2ebe4] via-[#ebe4d9] to-[#dceef6]"
             iconTint="bg-gradient-to-br from-[#e0ebe8] to-[#c9e2f2] text-[#2d3436]"
             icon={
@@ -662,9 +713,13 @@ export function Dashboard({
         <div className="space-y-6">
           <div className="grid min-w-0 gap-6 lg:grid-cols-2 lg:items-stretch">
             <div className="grid min-w-0 grid-cols-1 gap-6">
-              {demoLearners.map((learner) => (
-                <LearnerProfileCard key={learner.admissionId} learner={learner} />
-              ))}
+              {learners.length === 0 ? (
+                <p className="text-sm text-[#636e72]">{t("dashboard.noLearners")}</p>
+              ) : (
+                learners.map((learner) => (
+                  <LearnerProfileCard key={learner.admissionId} learner={learner} />
+                ))
+              )}
             </div>
             <aside className="flex min-h-0 lg:min-h-full">
               <section className="neo-card flex h-full w-full flex-col p-5">
@@ -672,6 +727,9 @@ export function Dashboard({
                   {t("dashboard.noticeBoard")}
                 </h2>
                 <ul className="mt-4 space-y-4">
+                  {notices.length === 0 ? (
+                    <li className="text-sm text-[#636e72]">{t("dashboard.noNotices")}</li>
+                  ) : null}
                   {notices.map((n, i) => (
                     <li key={i} className="text-sm">
                       <p className="text-xs font-bold text-[#6a9570]">{n.date}</p>
@@ -689,7 +747,9 @@ export function Dashboard({
               <h2 className="text-sm font-bold uppercase tracking-wide text-[#636e72]">
                 {t("dashboard.schoolSnapshot")}
               </h2>
-              <p className="mt-3 text-3xl font-bold text-[#2d3436]">—</p>
+              <p className="mt-3 text-3xl font-bold text-[#2d3436]">
+                {dashLoading ? "—" : (snapshot?.activeStudents.toLocaleString() ?? "—")}
+              </p>
               <p className="text-sm text-[#636e72]">{t("dashboard.activeStudentsHint")}</p>
               <div className="mt-auto flex gap-2 border-t border-[#ebe4d9] pt-4">
                 <button
@@ -710,7 +770,9 @@ export function Dashboard({
               <h2 className="text-sm font-bold uppercase tracking-wide text-[#636e72]">
                 {t("dashboard.classesSections")}
               </h2>
-              <p className="mt-3 text-3xl font-bold text-[#2d3436]">—</p>
+              <p className="mt-3 text-3xl font-bold text-[#2d3436]">
+                {dashLoading ? "—" : (snapshot?.classRooms.toLocaleString() ?? "—")}
+              </p>
               <p className="text-sm text-[#636e72]">{t("dashboard.homeroomsHint")}</p>
               <div className="mt-auto flex gap-2 border-t border-[#ebe4d9] pt-4">
                 <button
@@ -724,105 +786,31 @@ export function Dashboard({
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[
-              {
-                label: "Facebook",
-                sub: "1.2k",
-                className:
-                  "bg-gradient-to-br from-[#b9d9eb] to-[#8bb8d4] text-[#2d3436] shadow-[4px_4px_10px_rgba(150,180,200,0.45),-3px_-3px_8px_rgba(255,255,255,0.9)]",
-              },
-              {
-                label: "X",
-                sub: "840",
-                className:
-                  "bg-gradient-to-br from-[#dfe5e8] to-[#b8c2c8] text-[#2d3436] shadow-[4px_4px_10px_rgba(160,170,175,0.4),-3px_-3px_8px_rgba(255,255,255,0.9)]",
-              },
-              {
-                label: "Google",
-                sub: "2.1k",
-                className:
-                  "bg-gradient-to-br from-[#f7d1cd] to-[#e8b5b0] text-[#2d3436] shadow-[4px_4px_10px_rgba(200,160,155,0.4),-3px_-3px_8px_rgba(255,255,255,0.9)]",
-              },
-              {
-                label: "LinkedIn",
-                sub: "560",
-                className:
-                  "bg-gradient-to-br from-[#c5dff0] to-[#9cc9e0] text-[#2d3436] shadow-[4px_4px_10px_rgba(140,170,190,0.4),-3px_-3px_8px_rgba(255,255,255,0.9)]",
-              },
-            ].map((s) => (
-              <div
-                key={s.label}
-                className={`flex min-h-[5.5rem] flex-col items-center justify-center rounded-2xl px-3 py-4 text-center ${s.className}`}
-              >
-                <p className="text-lg font-bold">{s.sub}</p>
-                <p className="text-xs font-semibold opacity-90">{s.label}</p>
-              </div>
-            ))}
+            {socialTiles.length === 0 ? (
+              <p className="col-span-full text-sm text-[#636e72]">{t("dashboard.noSocial")}</p>
+            ) : (
+              socialTiles.map((s) => (
+                <div
+                  key={s.platformKey}
+                  className={`flex min-h-[5.5rem] flex-col items-center justify-center rounded-2xl px-3 py-4 text-center ${s.className}`}
+                >
+                  <p className="text-lg font-bold">{dashLoading ? "—" : s.sub}</p>
+                  <p className="text-xs font-semibold opacity-90">{s.label}</p>
+                </div>
+              ))
+            )}
           </div>
 
-          <section className="neo-card-elevated overflow-hidden">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#ebe4d9] bg-gradient-to-r from-[#f8f9f6] to-[#eef6f9] px-5 py-4">
-              <h2 className="font-semibold text-[#2d3436]">{t("dashboard.recentExpenses")}</h2>
-              <div className="flex flex-wrap gap-2">
-                <input
-                  type="text"
-                  placeholder={t("dashboard.expense.id")}
-                  className="neo-inset-field w-24 px-2 py-1.5 text-sm text-[#2d3436] placeholder:text-[#636e72]/70"
-                />
-                <input
-                  type="text"
-                  placeholder={t("dashboard.expense.date")}
-                  className="neo-inset-field w-28 px-2 py-1.5 text-sm text-[#2d3436] placeholder:text-[#636e72]/70"
-                />
-                <button
-                  type="button"
-                  className="rounded-full bg-gradient-to-br from-[#b8d8ba] to-[#8fb892] px-5 py-1.5 text-sm font-bold text-[#2d3436] shadow-[3px_3px_8px_rgba(120,150,125,0.35),-2px_-2px_6px_rgba(255,255,255,0.85)] transition hover:brightness-105"
-                >
-                  {t("dashboard.search")}
-                </button>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-sm">
-                <thead className="border-b border-[#ebe4d9] bg-[#faf7f0] text-xs font-bold uppercase text-[#636e72]">
-                  <tr>
-                    <th className="px-5 py-3">{t("dashboard.expense.id")}</th>
-                    <th className="px-5 py-3">{t("dashboard.expense.type")}</th>
-                    <th className="px-5 py-3">{t("dashboard.expense.amount")}</th>
-                    <th className="px-5 py-3">{t("dashboard.expense.status")}</th>
-                    <th className="px-5 py-3">{t("dashboard.expense.email")}</th>
-                    <th className="px-5 py-3">{t("dashboard.expense.date")}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {expenseRows.map((row) => (
-                    <tr key={row.id} className="transition hover:bg-[#b9d9eb]/15">
-                      <td className="px-5 py-3 font-mono text-xs text-[#636e72]">{row.id}</td>
-                      <td className="px-5 py-3 text-[#2d3436]">{row.type}</td>
-                      <td className="px-5 py-3 font-semibold text-[#2d3436]">{row.amount}</td>
-                      <td className="px-5 py-3">
-                        <span
-                          className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                            row.status === "Paid"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-rose-100 text-rose-800"
-                          }`}
-                        >
-                          {row.status === "Paid"
-                            ? t("dashboard.status.paid")
-                            : t("dashboard.status.due")}
-                        </span>
-                      </td>
-                        <td className="max-w-[140px] truncate px-5 py-3 text-[#636e72]">
-                          {row.email}
-                        </td>
-                        <td className="px-5 py-3 text-[#636e72]">{row.date}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
+          <SchoolExpensesPanel
+            limit={25}
+            title={t("dashboard.recentExpenses")}
+            showShowAll
+            onShowAll={() => {
+              setSettingsPanel(null);
+              setInboxScreen({ screen: "home" });
+              setMainView("expenses");
+            }}
+          />
         </div>
           </>
         )}

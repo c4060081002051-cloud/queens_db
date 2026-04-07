@@ -1,14 +1,10 @@
 import { useI18n } from "../../i18n/I18nProvider";
 import { useTheme, type Density, type ThemePreference } from "../../theme/ThemeProvider";
 
-type SettingsModesPanelProps = {
-  onBack: () => void;
-};
-
 const optionBtn =
   "rounded-xl border-2 px-4 py-3 text-left text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sky)]/60";
 
-export function SettingsModesPanel({ onBack }: SettingsModesPanelProps) {
+export function SettingsModesPanel() {
   const { t } = useI18n();
   const {
     themePreference,
@@ -20,14 +16,6 @@ export function SettingsModesPanel({ onBack }: SettingsModesPanelProps) {
 
   return (
     <div className="mx-auto max-w-lg">
-      <button
-        type="button"
-        onClick={onBack}
-        className="mb-4 flex items-center gap-1 text-sm font-semibold text-[#5a8faf] transition hover:text-[#2d3436]"
-      >
-        <span aria-hidden>←</span> {t("settings.modes.back")}
-      </button>
-
       <div className="neo-card-elevated p-6 sm:p-8">
         <h1 className="text-xl font-bold text-[#2d3436]">{t("settings.modes.title")}</h1>
         <p className="mt-2 text-sm text-[#636e72]">{t("settings.modes.subtitle")}</p>

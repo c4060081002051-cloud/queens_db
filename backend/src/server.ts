@@ -1,5 +1,6 @@
 import { loadConfig } from "./config.js";
 import { ensureSecuritySchema } from "./db/ensureSecuritySchema.js";
+import { ensureDashboardSchema } from "./db/ensureDashboardSchema.js";
 import { setupDatabase } from "./models/index.js";
 import { buildApp } from "./app.js";
 
@@ -8,6 +9,7 @@ const sequelize = setupDatabase(config);
 
 await sequelize.authenticate();
 await ensureSecuritySchema(sequelize);
+await ensureDashboardSchema(sequelize);
 
 if (config.NODE_ENV === "development") {
   const skipSync =

@@ -9,6 +9,10 @@ import { createAuthRouter } from "./routes/auth.js";
 import { createPasswordResetRouter } from "./routes/passwordReset.js";
 import { createMeAccountRouter } from "./routes/meAccount.js";
 import { createMeInboxRouter } from "./routes/meInbox.js";
+import { createMeDashboardRouter } from "./routes/meDashboard.js";
+import { createMeExpensesRouter } from "./routes/meExpenses.js";
+import { createMeGeoRouter } from "./routes/meGeo.js";
+import { createMeStudentsRouter } from "./routes/meStudents.js";
 
 export function buildApp(config: Config) {
   const app = express();
@@ -25,9 +29,31 @@ export function buildApp(config: Config) {
     .map((o) => o.trim())
     .filter(Boolean);
 
+  /** In development, allow any http(s) localhost / 127.0.0.1 port so Vite is fine on 5174, 5175, … */
+  const corsOrigin =
+    config.NODE_ENV === "development"
+      ? (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+          if (!origin) {
+            callback(null, true);
+            return;
+          }
+          if (origins.includes(origin)) {
+            callback(null, true);
+            return;
+          }
+          if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) {
+            callback(null, true);
+            return;
+          }
+          callback(null, false);
+        }
+      : origins.length
+        ? origins
+        : false;
+
   app.use(
     cors({
-      origin: origins.length ? origins : false,
+      origin: corsOrigin,
       credentials: true,
     }),
   );
@@ -45,6 +71,10 @@ export function buildApp(config: Config) {
 
   const meRouter = Router();
   meRouter.use(createMeInboxRouter());
+  meRouter.use(createMeExpensesRouter());
+  meRouter.use(createMeGeoRouter());
+  meRouter.use(createMeStudentsRouter());
+  meRouter.use(createMeDashboardRouter(config));
   meRouter.use(createMeAccountRouter(config));
   app.use("/api/me", requireAuth(config), meRouter);
 

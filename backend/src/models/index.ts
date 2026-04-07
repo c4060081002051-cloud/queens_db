@@ -43,6 +43,15 @@ export class Student extends Model {
   declare dateOfBirth: string | null;
   declare parentEmail: string | null;
   declare classRoomId: number | null;
+  declare gender: string | null;
+  declare rollNumber: string | null;
+  declare sectionName: string | null;
+  declare passportPhotoFilename: string | null;
+  declare nationality: string | null;
+  declare countryCode: string | null;
+  declare district: string | null;
+  declare registrationType: string;
+  declare previousSchool: string | null;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -76,6 +85,79 @@ export class UserMessage extends Model {
   declare body: string;
   declare readAt: Date | null;
   declare readonly createdAt: Date;
+}
+
+export class StaffMember extends Model {
+  declare id: number;
+  declare userId: number | null;
+  declare displayName: string;
+  declare email: string | null;
+  declare staffRole: string;
+  declare readonly createdAt: Date;
+}
+
+export class Enquiry extends Model {
+  declare id: number;
+  declare subject: string;
+  declare messageBody: string;
+  declare sourceEmail: string | null;
+  declare status: string;
+  declare readonly createdAt: Date;
+}
+
+export class NoticeBoardEntry extends Model {
+  declare id: number;
+  declare authorUserId: number | null;
+  declare authorLabel: string;
+  declare body: string;
+  declare publishedAt: Date;
+  declare readonly createdAt: Date;
+}
+
+export class SchoolExpense extends Model {
+  declare id: number;
+  declare referenceCode: string;
+  declare expenseType: string;
+  declare amountUgx: number;
+  declare status: string;
+  declare contactEmail: string;
+  declare expenseDate: string;
+  declare readonly createdAt: Date;
+}
+
+export class SchoolEvent extends Model {
+  declare id: number;
+  declare title: string;
+  declare eventDate: string;
+  declare readonly createdAt: Date;
+}
+
+export class DashboardChartPoint extends Model {
+  declare id: number;
+  declare sortOrder: number;
+  declare xPos: number;
+  declare yPos: number;
+}
+
+export class SocialPlatformStat extends Model {
+  declare id: number;
+  declare platformKey: string;
+  declare displayLabel: string;
+  declare followerCount: number;
+  declare sortOrder: number;
+}
+
+export class AttendanceRecord extends Model {
+  declare id: number;
+  declare studentId: number;
+  declare recordDate: string;
+  declare present: boolean;
+  declare readonly createdAt: Date;
+}
+
+export class DashboardKpi extends Model {
+  declare kpiKey: string;
+  declare valueText: string;
 }
 
 export function setupDatabase(config: Config): Sequelize {
@@ -187,6 +269,32 @@ export function setupDatabase(config: Config): Sequelize {
       classRoomId: {
         type: DataTypes.INTEGER.UNSIGNED,
         field: "class_room_id",
+      },
+      gender: { type: DataTypes.STRING(20), allowNull: true },
+      rollNumber: { type: DataTypes.STRING(32), field: "roll_number" },
+      sectionName: { type: DataTypes.STRING(80), field: "section_name" },
+      passportPhotoFilename: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        field: "passport_photo_filename",
+      },
+      nationality: { type: DataTypes.STRING(100), allowNull: true },
+      countryCode: {
+        type: DataTypes.STRING(10),
+        allowNull: true,
+        field: "country_code",
+      },
+      district: { type: DataTypes.STRING(120), allowNull: true },
+      registrationType: {
+        type: DataTypes.STRING(24),
+        allowNull: false,
+        defaultValue: "first",
+        field: "registration_type",
+      },
+      previousSchool: {
+        type: DataTypes.STRING(200),
+        allowNull: true,
+        field: "previous_school",
       },
     },
     {
@@ -395,6 +503,349 @@ export function setupDatabase(config: Config): Sequelize {
   User.hasMany(UserMessage, {
     foreignKey: "sender_user_id",
     as: "sentMessages",
+    constraints: false,
+  });
+
+  StaffMember.init(
+    {
+      id: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        autoIncrement: true,
+        primaryKey: true,
+      },
+      userId: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        field: "user_id",
+        allowNull: true,
+      },
+      displayName: {
+        type: DataTypes.STRING(120),
+        allowNull: false,
+        field: "display_name",
+      },
+      email: { type: DataTypes.STRING(255), allowNull: true },
+      staffRole: {
+        type: DataTypes.STRING(40),
+        allowNull: false,
+        field: "staff_role",
+      },
+      createdAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        field: "created_at",
+        defaultValue: DataTypes.NOW,
+      },
+    },
+    {
+      sequelize,
+      tableName: "staff_members",
+      modelName: "StaffMember",
+      timestamps: false,
+    },
+  );
+
+  Enquiry.init(
+    {
+      id: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        autoIncrement: true,
+        primaryKey: true,
+      },
+      subject: { type: DataTypes.STRING(255), allowNull: false },
+      messageBody: {
+        type: DataTypes.TEXT,
+        allowNull: false,
+        field: "message_body",
+      },
+      sourceEmail: {
+        type: DataTypes.STRING(255),
+        field: "source_email",
+        allowNull: true,
+      },
+      status: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        defaultValue: "open",
+      },
+      createdAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        field: "created_at",
+        defaultValue: DataTypes.NOW,
+      },
+    },
+    {
+      sequelize,
+      tableName: "enquiries",
+      modelName: "Enquiry",
+      timestamps: false,
+    },
+  );
+
+  NoticeBoardEntry.init(
+    {
+      id: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        autoIncrement: true,
+        primaryKey: true,
+      },
+      authorUserId: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        field: "author_user_id",
+        allowNull: true,
+      },
+      authorLabel: {
+        type: DataTypes.STRING(120),
+        allowNull: false,
+        field: "author_label",
+      },
+      body: { type: DataTypes.TEXT, allowNull: false },
+      publishedAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        field: "published_at",
+      },
+      createdAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        field: "created_at",
+        defaultValue: DataTypes.NOW,
+      },
+    },
+    {
+      sequelize,
+      tableName: "notice_board_entries",
+      modelName: "NoticeBoardEntry",
+      timestamps: false,
+    },
+  );
+
+  SchoolExpense.init(
+    {
+      id: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        autoIncrement: true,
+        primaryKey: true,
+      },
+      referenceCode: {
+        type: DataTypes.STRING(32),
+        allowNull: false,
+        field: "reference_code",
+      },
+      expenseType: {
+        type: DataTypes.STRING(120),
+        allowNull: false,
+        field: "expense_type",
+      },
+      amountUgx: {
+        type: DataTypes.BIGINT,
+        allowNull: false,
+        field: "amount_ugx",
+      },
+      status: { type: DataTypes.STRING(20), allowNull: false },
+      contactEmail: {
+        type: DataTypes.STRING(255),
+        allowNull: false,
+        field: "contact_email",
+      },
+      expenseDate: {
+        type: DataTypes.DATEONLY,
+        allowNull: false,
+        field: "expense_date",
+      },
+      createdAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        field: "created_at",
+        defaultValue: DataTypes.NOW,
+      },
+    },
+    {
+      sequelize,
+      tableName: "school_expenses",
+      modelName: "SchoolExpense",
+      timestamps: false,
+    },
+  );
+
+  SchoolEvent.init(
+    {
+      id: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        autoIncrement: true,
+        primaryKey: true,
+      },
+      title: { type: DataTypes.STRING(255), allowNull: false },
+      eventDate: {
+        type: DataTypes.DATEONLY,
+        allowNull: false,
+        field: "event_date",
+      },
+      createdAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        field: "created_at",
+        defaultValue: DataTypes.NOW,
+      },
+    },
+    {
+      sequelize,
+      tableName: "school_events",
+      modelName: "SchoolEvent",
+      timestamps: false,
+    },
+  );
+
+  DashboardChartPoint.init(
+    {
+      id: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        autoIncrement: true,
+        primaryKey: true,
+      },
+      sortOrder: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+        field: "sort_order",
+      },
+      xPos: { type: DataTypes.INTEGER, allowNull: false, field: "x_pos" },
+      yPos: { type: DataTypes.INTEGER, allowNull: false, field: "y_pos" },
+    },
+    {
+      sequelize,
+      tableName: "dashboard_chart_points",
+      modelName: "DashboardChartPoint",
+      timestamps: false,
+    },
+  );
+
+  SocialPlatformStat.init(
+    {
+      id: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        autoIncrement: true,
+        primaryKey: true,
+      },
+      platformKey: {
+        type: DataTypes.STRING(32),
+        allowNull: false,
+        field: "platform_key",
+      },
+      displayLabel: {
+        type: DataTypes.STRING(64),
+        allowNull: false,
+        field: "display_label",
+      },
+      followerCount: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        allowNull: false,
+        defaultValue: 0,
+        field: "follower_count",
+      },
+      sortOrder: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+        field: "sort_order",
+      },
+    },
+    {
+      sequelize,
+      tableName: "social_platform_stats",
+      modelName: "SocialPlatformStat",
+      timestamps: false,
+    },
+  );
+
+  AttendanceRecord.init(
+    {
+      id: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        autoIncrement: true,
+        primaryKey: true,
+      },
+      studentId: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        allowNull: false,
+        field: "student_id",
+      },
+      recordDate: {
+        type: DataTypes.DATEONLY,
+        allowNull: false,
+        field: "record_date",
+      },
+      present: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+      },
+      createdAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        field: "created_at",
+        defaultValue: DataTypes.NOW,
+      },
+    },
+    {
+      sequelize,
+      tableName: "attendance_records",
+      modelName: "AttendanceRecord",
+      timestamps: false,
+    },
+  );
+
+  DashboardKpi.init(
+    {
+      kpiKey: {
+        type: DataTypes.STRING(64),
+        primaryKey: true,
+        field: "kpi_key",
+      },
+      valueText: {
+        type: DataTypes.STRING(120),
+        allowNull: false,
+        field: "value_text",
+      },
+    },
+    {
+      sequelize,
+      tableName: "dashboard_kpis",
+      modelName: "DashboardKpi",
+      timestamps: false,
+    },
+  );
+
+  StaffMember.belongsTo(User, {
+    foreignKey: "user_id",
+    as: "user",
+    constraints: false,
+  });
+  User.hasMany(StaffMember, {
+    foreignKey: "user_id",
+    as: "staffMemberships",
+    constraints: false,
+  });
+
+  NoticeBoardEntry.belongsTo(User, {
+    foreignKey: "author_user_id",
+    as: "authorUser",
+    constraints: false,
+  });
+  User.hasMany(NoticeBoardEntry, {
+    foreignKey: "author_user_id",
+    as: "noticeAuthorships",
+    constraints: false,
+  });
+
+  AttendanceRecord.belongsTo(Student, {
+    foreignKey: "student_id",
+    as: "student",
+    constraints: false,
+  });
+  Student.hasMany(AttendanceRecord, {
+    foreignKey: "student_id",
+    as: "attendanceRecords",
     constraints: false,
   });
 

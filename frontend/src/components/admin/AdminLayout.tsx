@@ -38,6 +38,8 @@ type AdminLayoutProps = {
   onDashboardHome?: () => void;
   /** Open a settings section from the sidebar (e.g. `modes`). */
   onSelectSettingsPanel?: (panel: string) => void;
+  /** Students hub: open full-page list or admissions form. */
+  onSelectStudentSection?: (section: "all" | "admissions" | "profiles") => void;
   /** Refresh `/api/auth/me` after password or 2FA changes. */
   onAccountUpdated?: () => void;
 };
@@ -350,6 +352,7 @@ type NavLeaf = {
   badge?: string;
   settingsPanel?: string;
   inboxList?: "notifications" | "messages";
+  studentSection?: "all" | "admissions" | "profiles";
 };
 
 type NavGroup = { id: string; title: string; icon: NavIcon; items: NavLeaf[] };
@@ -362,9 +365,9 @@ function buildNavGroups(t: (key: string) => string): NavGroup[] {
       title: t("nav.students"),
       icon: IconUsers,
       items: [
-        { icon: IconUsers, label: t("nav.students.all") },
-        { icon: IconClipboard, label: t("nav.students.admissions") },
-        { icon: IconGradCap, label: t("nav.students.profiles") },
+        { icon: IconUsers, label: t("nav.students.all"), studentSection: "all" },
+        { icon: IconClipboard, label: t("nav.students.admissions"), studentSection: "admissions" },
+        { icon: IconGradCap, label: t("nav.students.profiles"), studentSection: "profiles" },
       ],
     },
     {
@@ -504,6 +507,7 @@ export function AdminLayout({
   onOpenInboxList,
   onDashboardHome,
   onSelectSettingsPanel,
+  onSelectStudentSection,
   onAccountUpdated,
 }: AdminLayoutProps) {
   const { t, locale, setLocale } = useI18n();
@@ -770,6 +774,9 @@ export function AdminLayout({
                                 }
                                 if (item.settingsPanel) {
                                   onSelectSettingsPanel?.(item.settingsPanel);
+                                }
+                                if (item.studentSection) {
+                                  onSelectStudentSection?.(item.studentSection);
                                 }
                                 setSidebarOpen(false);
                               }}
