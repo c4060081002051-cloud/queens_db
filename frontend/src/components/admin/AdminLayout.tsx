@@ -39,7 +39,9 @@ type AdminLayoutProps = {
   /** Open a settings section from the sidebar (e.g. `modes`). */
   onSelectSettingsPanel?: (panel: string) => void;
   /** Students hub: open full-page list or admissions form. */
-  onSelectStudentSection?: (section: "all" | "admissions" | "profiles") => void;
+  onSelectStudentSection?: (section: "all" | "admissions" | "profiles" | "import") => void;
+  /** Open class-specific list page. */
+  onSelectClassList?: (className: string) => void;
   /** Refresh `/api/auth/me` after password or 2FA changes. */
   onAccountUpdated?: () => void;
 };
@@ -352,7 +354,7 @@ type NavLeaf = {
   badge?: string;
   settingsPanel?: string;
   inboxList?: "notifications" | "messages";
-  studentSection?: "all" | "admissions" | "profiles";
+  studentSection?: "all" | "admissions" | "profiles" | "import";
 };
 
 type NavGroup = { id: string; title: string; icon: NavIcon; items: NavLeaf[] };
@@ -368,6 +370,7 @@ function buildNavGroups(t: (key: string) => string): NavGroup[] {
         { icon: IconUsers, label: t("nav.students.all"), studentSection: "all" },
         { icon: IconClipboard, label: t("nav.students.admissions"), studentSection: "admissions" },
         { icon: IconGradCap, label: t("nav.students.profiles"), studentSection: "profiles" },
+        { icon: IconClipboard, label: t("nav.students.import"), studentSection: "import" },
       ],
     },
     {
@@ -375,8 +378,19 @@ function buildNavGroups(t: (key: string) => string): NavGroup[] {
       title: t("nav.classes"),
       icon: IconGrid,
       items: [
-        { icon: IconGrid, label: t("nav.classes.list") },
-        { icon: IconLayers, label: t("nav.classes.sections") },
+        { icon: IconLayers, label: "Kindergarten (KG1-KG3)" },
+        { icon: IconGrid, label: "KG1" },
+        { icon: IconGrid, label: "KG2" },
+        { icon: IconGrid, label: "KG3" },
+        { icon: IconLayers, label: "Lower Primary (P1-P3)" },
+        { icon: IconGrid, label: "P1" },
+        { icon: IconGrid, label: "P2" },
+        { icon: IconGrid, label: "P3" },
+        { icon: IconLayers, label: "Upper Primary (P4-P7)" },
+        { icon: IconGrid, label: "P4" },
+        { icon: IconGrid, label: "P5" },
+        { icon: IconGrid, label: "P6" },
+        { icon: IconGrid, label: "P7" },
       ],
     },
     {
@@ -508,6 +522,7 @@ export function AdminLayout({
   onDashboardHome,
   onSelectSettingsPanel,
   onSelectStudentSection,
+  onSelectClassList,
   onAccountUpdated,
 }: AdminLayoutProps) {
   const { t, locale, setLocale } = useI18n();
@@ -516,6 +531,11 @@ export function AdminLayout({
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => ({ ...defaultOpenGroups }));
+  const [classSectionOpen, setClassSectionOpen] = useState<{
+    kg: boolean;
+    lower: boolean;
+    upper: boolean;
+  }>({ kg: false, lower: false, upper: false });
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [userMenuProfile, setUserMenuProfile] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
@@ -682,11 +702,17 @@ export function AdminLayout({
             <MenuIcon />
           </button>
           <div className="flex min-w-0 items-center gap-2">
-            <span className="neo-logo flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px] font-black tracking-tight">
-              Q
+            <span className="neo-logo flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg">
+              <img
+                src="/school-badge.png"
+                alt="School badge"
+                className="h-full w-full object-cover"
+              />
             </span>
             <div className="min-w-0">
-              <p className="truncate text-xs font-bold tracking-tight text-[#2d3436]">Queens</p>
+              <p className="truncate text-xs font-bold tracking-tight text-[#2d3436]">
+                Queens Nursery and Primary School, Bunamwaya
+              </p>
               <p className="truncate text-[9px] font-semibold uppercase tracking-[0.14em] text-[#636e72]">
                 {t("brand.subtitle")}
               </p>
@@ -761,43 +787,103 @@ export function AdminLayout({
                     />
                   </button>
                   {open ? (
-                    <ul className="neo-nav-sub mb-1 ml-3 mt-1 space-y-0 pb-0.5 pl-2.5">
-                      {group.items.map((item) => {
-                        const ItemIcon = item.icon;
-                        return (
-                          <li key={item.label}>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (item.inboxList) {
-                                  onOpenInboxList?.(item.inboxList);
-                                }
-                                if (item.settingsPanel) {
-                                  onSelectSettingsPanel?.(item.settingsPanel);
-                                }
-                                if (item.studentSection) {
-                                  onSelectStudentSection?.(item.studentSection);
-                                }
-                                setSidebarOpen(false);
-                              }}
-                              className="neo-nav-item flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] font-medium leading-snug text-[#636e72]"
-                            >
-                              {ItemIcon ? (
-                                <ItemIcon className="h-3.5 w-3.5 shrink-0 text-[#5a8faf] opacity-90" />
-                              ) : (
-                                <span className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                              )}
-                              <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                              {item.badge ? (
-                                <span className="shrink-0 rounded bg-[#b9d9eb]/60 px-1 py-px text-[9px] font-bold text-[#2d3436]">
-                                  {item.badge}
-                                </span>
-                              ) : null}
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
+                    group.id === "classes" ? (
+                      <ul className="neo-nav-sub mb-1 ml-3 mt-1 space-y-0.5 pb-0.5 pl-2.5">
+                        <li>
+                          <button
+                            type="button"
+                            onClick={() => setClassSectionOpen((s) => ({ ...s, kg: !s.kg }))}
+                            className="neo-nav-item flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] font-semibold leading-snug text-[#636e72]"
+                          >
+                            <IconLayers className="h-3.5 w-3.5 shrink-0 text-[#5a8faf] opacity-90" />
+                            <span className="min-w-0 flex-1 truncate">Kindergarten (KG1-KG3)</span>
+                            <ChevronDown open={classSectionOpen.kg} className="h-3.5 w-3.5" />
+                          </button>
+                        </li>
+                        {classSectionOpen.kg ? (
+                          <>
+                            <li><button type="button" onClick={() => { onSelectClassList?.("KG1"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">KG1</button></li>
+                            <li><button type="button" onClick={() => { onSelectClassList?.("KG2"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">KG2</button></li>
+                            <li><button type="button" onClick={() => { onSelectClassList?.("KG3"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">KG3</button></li>
+                          </>
+                        ) : null}
+                        <li>
+                          <button
+                            type="button"
+                            onClick={() => setClassSectionOpen((s) => ({ ...s, lower: !s.lower }))}
+                            className="neo-nav-item flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] font-semibold leading-snug text-[#636e72]"
+                          >
+                            <IconLayers className="h-3.5 w-3.5 shrink-0 text-[#5a8faf] opacity-90" />
+                            <span className="min-w-0 flex-1 truncate">Lower Primary (P1-P3)</span>
+                            <ChevronDown open={classSectionOpen.lower} className="h-3.5 w-3.5" />
+                          </button>
+                        </li>
+                        {classSectionOpen.lower ? (
+                          <>
+                            <li><button type="button" onClick={() => { onSelectClassList?.("P1"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">P1</button></li>
+                            <li><button type="button" onClick={() => { onSelectClassList?.("P2"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">P2</button></li>
+                            <li><button type="button" onClick={() => { onSelectClassList?.("P3"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">P3</button></li>
+                          </>
+                        ) : null}
+                        <li>
+                          <button
+                            type="button"
+                            onClick={() => setClassSectionOpen((s) => ({ ...s, upper: !s.upper }))}
+                            className="neo-nav-item flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] font-semibold leading-snug text-[#636e72]"
+                          >
+                            <IconLayers className="h-3.5 w-3.5 shrink-0 text-[#5a8faf] opacity-90" />
+                            <span className="min-w-0 flex-1 truncate">Upper Primary (P4-P7)</span>
+                            <ChevronDown open={classSectionOpen.upper} className="h-3.5 w-3.5" />
+                          </button>
+                        </li>
+                        {classSectionOpen.upper ? (
+                          <>
+                            <li><button type="button" onClick={() => { onSelectClassList?.("P4"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">P4</button></li>
+                            <li><button type="button" onClick={() => { onSelectClassList?.("P5"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">P5</button></li>
+                            <li><button type="button" onClick={() => { onSelectClassList?.("P6"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">P6</button></li>
+                            <li><button type="button" onClick={() => { onSelectClassList?.("P7"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">P7</button></li>
+                          </>
+                        ) : null}
+                      </ul>
+                    ) : (
+                      <ul className="neo-nav-sub mb-1 ml-3 mt-1 space-y-0 pb-0.5 pl-2.5">
+                        {group.items.map((item) => {
+                          const ItemIcon = item.icon;
+                          return (
+                            <li key={item.label}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (item.inboxList) {
+                                    onOpenInboxList?.(item.inboxList);
+                                  }
+                                  if (item.settingsPanel) {
+                                    onSelectSettingsPanel?.(item.settingsPanel);
+                                  }
+                                  if (item.studentSection) {
+                                    onSelectStudentSection?.(item.studentSection);
+                                  }
+                                  setSidebarOpen(false);
+                                }}
+                                className="neo-nav-item flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] font-medium leading-snug text-[#636e72]"
+                              >
+                                {ItemIcon ? (
+                                  <ItemIcon className="h-3.5 w-3.5 shrink-0 text-[#5a8faf] opacity-90" />
+                                ) : (
+                                  <span className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                )}
+                                <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                                {item.badge ? (
+                                  <span className="shrink-0 rounded bg-[#b9d9eb]/60 px-1 py-px text-[9px] font-bold text-[#2d3436]">
+                                    {item.badge}
+                                  </span>
+                                ) : null}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )
                   ) : null}
                 </div>
               );

@@ -21,6 +21,7 @@ type StudentsListPanelProps = {
   limit: number;
   title: string;
   refreshKey?: number;
+  classNameFilter?: string | null;
   /** Directory pages: export + row actions */
   showDirectoryTools?: boolean;
 };
@@ -70,6 +71,7 @@ export function StudentsListPanel({
   limit,
   title,
   refreshKey = 0,
+  classNameFilter = null,
   showDirectoryTools = false,
 }: StudentsListPanelProps) {
   const { t } = useI18n();
@@ -87,9 +89,17 @@ export function StudentsListPanel({
     let cancelled = false;
     setLoading(true);
     setError(null);
-    void fetchStudents({ q: applied, sortBy, sortDir, limit })
+    const q = classNameFilter ? `${classNameFilter} ${applied}`.trim() : applied;
+    void fetchStudents({ q, sortBy, sortDir, limit })
       .then((rows) => {
-        if (!cancelled) setItems(rows);
+        if (!cancelled) {
+          const filtered = classNameFilter
+            ? rows.filter(
+                (r) => (r.className ?? "").trim().toLowerCase() === classNameFilter.trim().toLowerCase(),
+              )
+            : rows;
+          setItems(filtered);
+        }
       })
       .catch((err) => {
         if (!cancelled) {
@@ -103,7 +113,7 @@ export function StudentsListPanel({
     return () => {
       cancelled = true;
     };
-  }, [applied, sortBy, sortDir, limit, refreshKey]);
+  }, [applied, sortBy, sortDir, limit, refreshKey, classNameFilter]);
 
   const runSearch = () => {
     setApplied(draft.trim());
@@ -120,8 +130,17 @@ export function StudentsListPanel({
   };
 
   const reloadList = () => {
-    void fetchStudents({ q: applied, sortBy, sortDir, limit })
-      .then(setItems)
+    const q = classNameFilter ? `${classNameFilter} ${applied}`.trim() : applied;
+    void fetchStudents({ q, sortBy, sortDir, limit })
+      .then((rows) =>
+        setItems(
+          classNameFilter
+            ? rows.filter(
+                (r) => (r.className ?? "").trim().toLowerCase() === classNameFilter.trim().toLowerCase(),
+              )
+            : rows,
+        ),
+      )
       .catch(() => {});
   };
 

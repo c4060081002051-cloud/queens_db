@@ -34,6 +34,8 @@ type DashboardProps = {
   onAccountUpdated?: () => void;
 };
 
+const DASHBOARD_VIEW_STATE_KEY = "junior_school_dashboard_view_state";
+
 const learnerToolbarBtn =
   "rounded-xl bg-gradient-to-br from-[#faf7f0] to-[#ebe4d9] p-2.5 text-[#636e72] shadow-[2px_2px_5px_rgba(200,188,170,0.35),-1px_-1px_4px_rgba(255,255,255,0.9)] transition hover:text-[#5a8faf] active:translate-y-px";
 
@@ -418,6 +420,52 @@ type InboxScreen =
   | { screen: "list"; kind: "notifications" | "messages" }
   | { screen: "detail"; kind: "notifications" | "messages"; id: number };
 
+type PersistedViewState = {
+  settingsPanel: string | null;
+  inboxScreen: InboxScreen;
+  mainView: "dashboard" | "expenses" | "students";
+  studentSection: StudentNavSection;
+  selectedClassName: string | null;
+};
+
+function readPersistedViewState(): PersistedViewState | null {
+  try {
+    const raw = sessionStorage.getItem(DASHBOARD_VIEW_STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PersistedViewState>;
+    const mainView =
+      parsed.mainView === "expenses" || parsed.mainView === "students"
+        ? parsed.mainView
+        : "dashboard";
+    const studentSection =
+      parsed.studentSection === "admissions" ||
+      parsed.studentSection === "profiles" ||
+      parsed.studentSection === "import"
+        ? parsed.studentSection
+        : "all";
+    const inboxScreen: InboxScreen =
+      parsed.inboxScreen?.screen === "list" &&
+      (parsed.inboxScreen.kind === "notifications" || parsed.inboxScreen.kind === "messages")
+        ? { screen: "list", kind: parsed.inboxScreen.kind }
+        : parsed.inboxScreen?.screen === "detail" &&
+            (parsed.inboxScreen.kind === "notifications" ||
+              parsed.inboxScreen.kind === "messages") &&
+            Number.isFinite(parsed.inboxScreen.id)
+          ? { screen: "detail", kind: parsed.inboxScreen.kind, id: Number(parsed.inboxScreen.id) }
+          : { screen: "home" };
+    return {
+      settingsPanel: typeof parsed.settingsPanel === "string" ? parsed.settingsPanel : null,
+      inboxScreen,
+      mainView,
+      studentSection,
+      selectedClassName:
+        typeof parsed.selectedClassName === "string" ? parsed.selectedClassName : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function mapToHeaderItems(rows: { id: number; title: string; body: string; read: boolean; createdAt: string }[]): InboxItem[] {
   return rows.map((x) => ({
     id: String(x.id),
@@ -437,15 +485,27 @@ export function Dashboard({
   onAccountUpdated,
 }: DashboardProps) {
   const { t } = useI18n();
-  const [settingsPanel, setSettingsPanel] = useState<string | null>(null);
-  const [inboxScreen, setInboxScreen] = useState<InboxScreen>({ screen: "home" });
+  const initialView = readPersistedViewState();
+  const [settingsPanel, setSettingsPanel] = useState<string | null>(
+    initialView?.settingsPanel ?? null,
+  );
+  const [inboxScreen, setInboxScreen] = useState<InboxScreen>(
+    initialView?.inboxScreen ?? { screen: "home" },
+  );
   const [headerNotifications, setHeaderNotifications] = useState<InboxItem[]>([]);
   const [headerMessages, setHeaderMessages] = useState<InboxItem[]>([]);
   const [dash, setDash] = useState<DashboardPayload | null>(null);
   const [dashLoading, setDashLoading] = useState(false);
   const [dashError, setDashError] = useState<string | null>(null);
-  const [mainView, setMainView] = useState<"dashboard" | "expenses" | "students">("dashboard");
-  const [studentSection, setStudentSection] = useState<StudentNavSection>("all");
+  const [mainView, setMainView] = useState<"dashboard" | "expenses" | "students">(
+    initialView?.mainView ?? "dashboard",
+  );
+  const [studentSection, setStudentSection] = useState<StudentNavSection>(
+    initialView?.studentSection ?? "all",
+  );
+  const [selectedClassName, setSelectedClassName] = useState<string | null>(
+    initialView?.selectedClassName ?? null,
+  );
 
   const refreshHeaderInbox = useCallback(async () => {
     try {
@@ -487,6 +547,21 @@ export function Dashboard({
       cancelled = true;
     };
   }, [inboxScreen.screen, settingsPanel]);
+
+  useEffect(() => {
+    try {
+      const value: PersistedViewState = {
+        settingsPanel,
+        inboxScreen,
+        mainView,
+        studentSection,
+        selectedClassName,
+      };
+      sessionStorage.setItem(DASHBOARD_VIEW_STATE_KEY, JSON.stringify(value));
+    } catch {
+      // Ignore storage failures (e.g. privacy mode/storage disabled).
+    }
+  }, [settingsPanel, inboxScreen, mainView, studentSection, selectedClassName]);
 
   const directoryCards = buildDirectoryStatCards(dash?.stats ?? null, dashLoading);
   const learners = dash?.learners ?? [];
@@ -543,6 +618,7 @@ export function Dashboard({
         setMainView("dashboard");
         setSettingsPanel(null);
         setInboxScreen({ screen: "home" });
+        setSelectedClassName(null);
       }}
       onSelectSettingsPanel={(panel) => {
         setInboxScreen({ screen: "home" });
@@ -553,6 +629,14 @@ export function Dashboard({
         setInboxScreen({ screen: "home" });
         setMainView("students");
         setStudentSection(section);
+        setSelectedClassName(null);
+      }}
+      onSelectClassList={(className) => {
+        setSettingsPanel(null);
+        setInboxScreen({ screen: "home" });
+        setMainView("students");
+        setStudentSection("all");
+        setSelectedClassName(className);
       }}
       onAccountUpdated={onAccountUpdated}
     >
@@ -588,7 +672,7 @@ export function Dashboard({
         ) : mainView === "expenses" ? (
           <ExpensesAllPage />
         ) : mainView === "students" ? (
-          <StudentsSectionPage section={studentSection} />
+          <StudentsSectionPage section={studentSection} classNameFilter={selectedClassName} />
         ) : null}
         {settingsPanel === "modes" ||
         inboxScreen.screen !== "home" ||

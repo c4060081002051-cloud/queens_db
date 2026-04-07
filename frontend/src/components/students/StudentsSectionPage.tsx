@@ -1,24 +1,34 @@
 import { useState } from "react";
-import { BulkStudentUpload } from "./BulkStudentUpload";
+import { AdmissionImportTable } from "./AdmissionImportTable";
 import { NewAdmissionForm } from "./NewAdmissionForm";
 import { StudentsListPanel } from "./StudentsListPanel";
 import { useI18n } from "../../i18n/I18nProvider";
 
-export type StudentNavSection = "all" | "admissions" | "profiles";
+export type StudentNavSection = "all" | "admissions" | "profiles" | "import";
 
-export function StudentsSectionPage({ section }: { section: StudentNavSection }) {
+export function StudentsSectionPage({
+  section,
+  classNameFilter = null,
+}: {
+  section: StudentNavSection;
+  classNameFilter?: string | null;
+}) {
   const { t } = useI18n();
   const [listRefresh, setListRefresh] = useState(0);
 
   const titleKey =
     section === "admissions"
       ? "students.page.admissionsTitle"
+      : section === "import"
+        ? "students.page.importTitle"
       : section === "profiles"
         ? "students.page.profilesTitle"
         : "students.page.allTitle";
   const introKey =
     section === "admissions"
       ? "students.page.introAdmissions"
+      : section === "import"
+        ? "students.page.introImport"
       : section === "profiles"
         ? "students.page.introProfiles"
         : "students.page.introAll";
@@ -31,17 +41,21 @@ export function StudentsSectionPage({ section }: { section: StudentNavSection })
       </header>
 
       {section === "admissions" ? (
-        <div className="grid gap-6 lg:grid-cols-1">
-          <NewAdmissionForm onCreated={() => setListRefresh((k) => k + 1)} />
-          <BulkStudentUpload onDone={() => setListRefresh((k) => k + 1)} />
-        </div>
+        <NewAdmissionForm onCreated={() => setListRefresh((k) => k + 1)} />
+      ) : section === "import" ? (
+        <AdmissionImportTable onDone={() => setListRefresh((k) => k + 1)} />
       ) : (
         <StudentsListPanel
           limit={500}
           showDirectoryTools
           refreshKey={listRefresh}
+          classNameFilter={classNameFilter}
           title={
-            section === "profiles" ? t("students.page.profilesTitle") : t("students.tableCaption")
+            classNameFilter
+              ? `${t("students.tableCaption")} - ${classNameFilter}`
+              : section === "profiles"
+                ? t("students.page.profilesTitle")
+                : t("students.tableCaption")
           }
         />
       )}
