@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { Op, QueryTypes } from "sequelize";
+import { Op, QueryTypes, fn, col, where } from "sequelize";
 import type { Config } from "../config.js";
 import { ensureDashboardSchema } from "../db/ensureDashboardSchema.js";
 import { safeLocaleDate } from "../formatting/localeDate.js";
@@ -102,7 +102,14 @@ export function createMeDashboardRouter(config: Config) {
       const loadAggregate = () =>
         Promise.all([
           Student.count(),
-          StaffMember.count({ where: { staffRole: "teaching" } }),
+          StaffMember.count({
+            where: {
+              [Op.or]: [
+                where(fn("LOWER", col("staff_role")), "teaching"),
+                where(fn("LOWER", col("staff_role")), "teacher"),
+              ],
+            },
+          }),
           StaffMember.count({ where: { staffRole: "librarian" } }),
           StaffMember.count({ where: { staffRole: "accountant" } }),
           Enquiry.count(),

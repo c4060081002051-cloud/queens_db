@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   deleteStudent,
+  fetchStudent,
   fetchStudents,
   type StudentApiRow,
   type StudentSortBy,
@@ -84,6 +85,10 @@ export function StudentsListPanel({
   const [error, setError] = useState<string | null>(null);
   const [modalId, setModalId] = useState<number | null>(null);
   const [modalInitialEdit, setModalInitialEdit] = useState(false);
+  const [profileCard, setProfileCard] = useState<StudentApiRow | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<StudentApiRow | null>(null);
+  const [confirmDeleteRow, setConfirmDeleteRow] = useState<StudentApiRow | null>(null);
+  const deleteTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,7 +126,10 @@ export function StudentsListPanel({
 
   const openView = (id: number) => {
     setModalInitialEdit(false);
-    setModalId(id);
+    setModalId(null);
+    void fetchStudent(id)
+      .then((row) => setProfileCard(row))
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load profile"));
   };
 
   const openEdit = (id: number) => {
@@ -163,8 +171,92 @@ export function StudentsListPanel({
     });
   };
 
+  const queueDelete = (row: StudentApiRow) => {
+    if (deleteTimerRef.current != null) {
+      window.clearTimeout(deleteTimerRef.current);
+      deleteTimerRef.current = null;
+    }
+    setPendingDelete(row);
+    setItems((prev) => prev.filter((x) => x.id !== row.id));
+    if (modalId === row.id) setModalId(null);
+    if (profileCard?.id === row.id) setProfileCard(null);
+    deleteTimerRef.current = window.setTimeout(() => {
+      void deleteStudent(row.id).catch((e) =>
+        setError(e instanceof Error ? e.message : t("students.modal.deleteFailed")),
+      );
+      setPendingDelete(null);
+      deleteTimerRef.current = null;
+    }, 10000);
+  };
+
+  const undoDelete = () => {
+    if (!pendingDelete) return;
+    if (deleteTimerRef.current != null) {
+      window.clearTimeout(deleteTimerRef.current);
+      deleteTimerRef.current = null;
+    }
+    setItems((prev) => [pendingDelete, ...prev]);
+    setPendingDelete(null);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (deleteTimerRef.current != null) {
+        window.clearTimeout(deleteTimerRef.current);
+      }
+    };
+  }, []);
+
   return (
     <>
+      {confirmDeleteRow ? (
+        <section className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-[#2d3436]/40 backdrop-blur-[2px]"
+            onClick={() => setConfirmDeleteRow(null)}
+            aria-label="Close warning dialog"
+          />
+          <div className="relative w-full max-w-md rounded-2xl border border-[#f7d1cd] bg-[#fffcf7] p-5 shadow-[8px_12px_40px_rgba(45,52,54,0.2)]">
+            <h3 className="text-base font-bold text-[#a9332a]">Warning</h3>
+            <p className="mt-2 text-sm text-[#2d3436]">
+              {t("students.deleteRowConfirm")} You will have 10 seconds to undo.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteRow(null)}
+                className="rounded-full bg-[#faf7f0] px-4 py-1.5 text-xs font-semibold text-[#636e72] ring-1 ring-[#ebe4d9]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  queueDelete(confirmDeleteRow);
+                  setConfirmDeleteRow(null);
+                }}
+                className="rounded-full bg-[#fce8e5] px-4 py-1.5 text-xs font-bold text-[#a9332a]"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : null}
+      {pendingDelete ? (
+        <section className="neo-card flex items-center justify-between gap-3 border border-[#f7d1cd] bg-[#fff7f5] px-4 py-3">
+          <p className="text-sm text-[#2d3436]">Student deleted. Undo available for 10 seconds.</p>
+          <button
+            type="button"
+            onClick={undoDelete}
+            className="rounded-full bg-[#2d3436] px-4 py-1.5 text-xs font-bold text-white"
+          >
+            Undo
+          </button>
+        </section>
+      ) : null}
+      {profileCard ? null : (
       <section className="overflow-hidden rounded-2xl border border-[#ebe4d9] bg-[#fffcf7] shadow-[6px_8px_24px_rgba(45,52,54,0.08)]">
         <div className="flex flex-col gap-4 border-b border-[#ebe4d9] bg-gradient-to-r from-[#f4faf5] via-[#f8f9f6] to-[#eef6f9] px-5 py-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
           <div className="min-w-0 shrink-0">
@@ -354,17 +446,7 @@ export function StudentsListPanel({
                               className={`${iconBtn} text-rose-600 hover:border-rose-200 hover:text-rose-800`}
                               title={t("students.action.delete")}
                               aria-label={t("students.action.delete")}
-                              onClick={() => {
-                                if (!window.confirm(t("students.deleteRowConfirm"))) return;
-                                void deleteStudent(row.id)
-                                  .then(() => {
-                                    setItems((prev) => prev.filter((x) => x.id !== row.id));
-                                    if (modalId === row.id) setModalId(null);
-                                  })
-                                  .catch((e) =>
-                                    setError(e instanceof Error ? e.message : t("students.modal.deleteFailed")),
-                                  );
-                              }}
+                              onClick={() => setConfirmDeleteRow(row)}
                             >
                               <IconTrash />
                             </button>
@@ -378,6 +460,74 @@ export function StudentsListPanel({
           </table>
         </div>
       </section>
+      )}
+
+      {profileCard ? (
+        <section className="neo-card overflow-hidden border border-[#d9e4f0] bg-gradient-to-br from-[#fffdf9] via-[#f8fbff] to-[#eef4fb] p-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="w-full border-b border-[#e1e9f2] px-4 py-3">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-[#2d3436]">Student Profile Card</h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setProfileCard(null)}
+              className="mr-3 mt-3 rounded-full bg-[#faf7f0] px-3 py-1 text-xs font-semibold text-[#636e72] ring-1 ring-[#ebe4d9] transition hover:bg-white"
+            >
+              Close
+            </button>
+          </div>
+          <div className="px-4 pb-4 pt-3">
+          <div className="flex items-center gap-3 rounded-2xl bg-white/80 p-3 ring-1 ring-[#e3ebf5]">
+            <div className="h-16 w-16 overflow-hidden rounded-2xl ring-1 ring-[#d0dfef]">
+              <AuthenticatedStudentPhoto
+                studentId={profileCard.id}
+                hasPhoto={profileCard.hasPassportPhoto}
+                alt="Student profile"
+                className="h-full w-full object-cover"
+              />
+            </div>
+            <div>
+              <p className="text-base font-bold text-[#2d3436]">{profileCard.fullName}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#636e72]">
+                {profileCard.className ?? "Unassigned"} {profileCard.sectionName ? `- ${profileCard.sectionName}` : ""}
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <p className="rounded-xl bg-white/80 px-3 py-2"><span className="font-semibold text-[#636e72]">{t("students.col.admission")}:</span> {profileCard.admissionNumber}</p>
+            <p className="rounded-xl bg-white/80 px-3 py-2"><span className="font-semibold text-[#636e72]">{t("students.col.roll")}:</span> {profileCard.rollNumber ?? "—"}</p>
+            <p className="rounded-xl bg-white/80 px-3 py-2"><span className="font-semibold text-[#636e72]">{t("students.col.class")}:</span> {profileCard.className ?? "—"}</p>
+            <p className="rounded-xl bg-white/80 px-3 py-2"><span className="font-semibold text-[#636e72]">{t("students.col.section")}:</span> {profileCard.sectionName ?? "—"}</p>
+            <p className="rounded-xl bg-white/80 px-3 py-2"><span className="font-semibold text-[#636e72]">{t("students.col.dob")}:</span> {profileCard.dateOfBirthFormatted ?? "—"}</p>
+            <p className="rounded-xl bg-white/80 px-3 py-2"><span className="font-semibold text-[#636e72]">{t("students.col.parentEmail")}:</span> {profileCard.parentEmail ?? "—"}</p>
+            <p className="rounded-xl bg-white/80 px-3 py-2"><span className="font-semibold text-[#636e72]">{t("students.col.nationality")}:</span> {profileCard.nationality ?? "—"}</p>
+            <p className="rounded-xl bg-white/80 px-3 py-2"><span className="font-semibold text-[#636e72]">{t("students.col.country")}:</span> {profileCard.countryName ?? profileCard.countryCode ?? "—"}</p>
+            <p className="rounded-xl bg-white/80 px-3 py-2"><span className="font-semibold text-[#636e72]">{t("students.col.district")}:</span> {profileCard.district ?? "—"}</p>
+            <p className="rounded-xl bg-white/80 px-3 py-2"><span className="font-semibold text-[#636e72]">{t("students.col.registrationType")}:</span> {profileCard.registrationType}</p>
+            <p className="rounded-xl bg-white/80 px-3 py-2 sm:col-span-2"><span className="font-semibold text-[#636e72]">{t("students.col.previousSchool")}:</span> {profileCard.previousSchool ?? "—"}</p>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2 border-t border-[#dce6f2] pt-3">
+            <button
+              type="button"
+              onClick={() => {
+                setModalInitialEdit(true);
+                setModalId(profileCard.id);
+              }}
+              className="rounded-full bg-[#e8f2fa] px-4 py-1.5 text-xs font-semibold text-[#2d3436]"
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmDeleteRow(profileCard)}
+              className="rounded-full bg-[#fce8e5] px-4 py-1.5 text-xs font-semibold text-[#a9332a]"
+            >
+              Delete
+            </button>
+          </div>
+          </div>
+        </section>
+      ) : null}
 
       <StudentDetailModal
         studentId={modalId}
