@@ -70,8 +70,78 @@ export async function ensureDashboardSchema(sequelize: Sequelize): Promise<void>
   );
   await addColumnIfMissing(
     sequelize,
+    "ALTER TABLE students ADD COLUMN middle_name VARCHAR(100) NULL",
+    "students.middle_name",
+  );
+  await addColumnIfMissing(
+    sequelize,
     "ALTER TABLE students ADD COLUMN previous_school VARCHAR(200) NULL",
     "students.previous_school",
+  );
+  await addColumnIfMissing(
+    sequelize,
+    "ALTER TABLE students ADD COLUMN parent_alive_status VARCHAR(16) NULL",
+    "students.parent_alive_status",
+  );
+  await addColumnIfMissing(
+    sequelize,
+    "ALTER TABLE students ADD COLUMN parent_full_name VARCHAR(120) NULL",
+    "students.parent_full_name",
+  );
+  await addColumnIfMissing(
+    sequelize,
+    "ALTER TABLE students ADD COLUMN parent_phone VARCHAR(32) NULL",
+    "students.parent_phone",
+  );
+  await addColumnIfMissing(
+    sequelize,
+    "ALTER TABLE students ADD COLUMN parent_address VARCHAR(255) NULL",
+    "students.parent_address",
+  );
+  await addColumnIfMissing(
+    sequelize,
+    "ALTER TABLE students ADD COLUMN religion VARCHAR(80) NULL",
+    "students.religion",
+  );
+  await addColumnIfMissing(
+    sequelize,
+    "ALTER TABLE students ADD COLUMN special_needs VARCHAR(255) NULL",
+    "students.special_needs",
+  );
+  await addColumnIfMissing(
+    sequelize,
+    "ALTER TABLE students ADD COLUMN boarding_status VARCHAR(16) NULL",
+    "students.boarding_status",
+  );
+  await addColumnIfMissing(
+    sequelize,
+    "ALTER TABLE students ADD COLUMN residence_address VARCHAR(255) NULL",
+    "students.residence_address",
+  );
+  await addColumnIfMissing(
+    sequelize,
+    "ALTER TABLE students ADD COLUMN medical_info TEXT NULL",
+    "students.medical_info",
+  );
+  await addColumnIfMissing(
+    sequelize,
+    "ALTER TABLE students ADD COLUMN emergency_contact_name VARCHAR(120) NULL",
+    "students.emergency_contact_name",
+  );
+  await addColumnIfMissing(
+    sequelize,
+    "ALTER TABLE students ADD COLUMN emergency_contact_phone VARCHAR(32) NULL",
+    "students.emergency_contact_phone",
+  );
+  await addColumnIfMissing(
+    sequelize,
+    "ALTER TABLE students ADD COLUMN guardian_name VARCHAR(120) NULL",
+    "students.guardian_name",
+  );
+  await addColumnIfMissing(
+    sequelize,
+    "ALTER TABLE students ADD COLUMN guardian_phone VARCHAR(32) NULL",
+    "students.guardian_phone",
   );
 
   await sequelize.query(`

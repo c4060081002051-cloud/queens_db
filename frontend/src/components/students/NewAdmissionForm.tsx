@@ -30,6 +30,7 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
   const [geoError, setGeoError] = useState<string | null>(null);
   const [districtsLoading, setDistrictsLoading] = useState(false);
   const [firstName, setFirstName] = useState("");
+  const [middleName, setMiddleName] = useState("");
   const [lastName, setLastName] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [parentEmail, setParentEmail] = useState("");
@@ -42,10 +43,46 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
   const [district, setDistrict] = useState("");
   const [registrationType, setRegistrationType] = useState<"first" | "continuing">("first");
   const [previousSchool, setPreviousSchool] = useState("");
+  const [parentAliveStatus, setParentAliveStatus] = useState<"both" | "one" | "none" | "">("");
+  const [singleParentType, setSingleParentType] = useState<"mother" | "father" | "">("");
+  const [parentFullName, setParentFullName] = useState("");
+  const [parentPhone, setParentPhone] = useState("");
+  const [parentAddress, setParentAddress] = useState("");
+  const [religion, setReligion] = useState("");
+  const [specialNeeds, setSpecialNeeds] = useState("");
+  const [boardingStatus, setBoardingStatus] = useState<
+    "boarding" | "day_half" | "day_full" | ""
+  >("");
+  const [residenceAddress, setResidenceAddress] = useState("");
+  const [medicalInfo, setMedicalInfo] = useState("");
+  const [emergencyContactName, setEmergencyContactName] = useState("");
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState("");
+  const [guardianName, setGuardianName] = useState("");
+  const [guardianPhone, setGuardianPhone] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
+  const kindergartenRooms = rooms.filter((r) => /^KG[1-3]$/i.test(r.name.trim()));
+  const lowerPrimaryRooms = rooms.filter((r) => /^P[1-3]$/i.test(r.name.trim()));
+  const upperPrimaryRooms = rooms.filter((r) => /^P[4-7]$/i.test(r.name.trim()));
+  const otherRooms = rooms.filter(
+    (r) =>
+      !/^KG[1-3]$/i.test(r.name.trim()) &&
+      !/^P[1-3]$/i.test(r.name.trim()) &&
+      !/^P[4-7]$/i.test(r.name.trim()),
+  );
+  const religions = [
+    "Christian",
+    "Muslim",
+    "Catholic",
+    "Protestant",
+    "Born Again",
+    "Seventh-day Adventist",
+    "Orthodox",
+    "Traditional",
+    "Other",
+  ];
 
   useEffect(() => {
     let cancelled = false;
@@ -115,6 +152,7 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
 
   const resetForm = () => {
     setFirstName("");
+    setMiddleName("");
     setLastName("");
     setDateOfBirth("");
     setParentEmail("");
@@ -128,6 +166,20 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
     setDistricts([]);
     setRegistrationType("first");
     setPreviousSchool("");
+    setParentAliveStatus("");
+    setSingleParentType("");
+    setParentFullName("");
+    setParentPhone("");
+    setParentAddress("");
+    setReligion("");
+    setSpecialNeeds("");
+    setBoardingStatus("");
+    setResidenceAddress("");
+    setMedicalInfo("");
+    setEmergencyContactName("");
+    setEmergencyContactPhone("");
+    setGuardianName("");
+    setGuardianPhone("");
     setPhotoFile(null);
   };
 
@@ -137,12 +189,18 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
     setFormSuccess(null);
     setSubmitting(true);
     try {
+      if (!firstName.trim() || !lastName.trim()) {
+        setFormError(t("students.form.firstLastRequired"));
+        setSubmitting(false);
+        return;
+      }
       const cr =
         classRoomId.trim() === "" ? undefined : Number.parseInt(classRoomId, 10);
       const cc = countryCode.trim();
       const dist = district.trim();
       const created = await createStudent({
         firstName: firstName.trim(),
+        middleName: middleName.trim() || undefined,
         lastName: lastName.trim(),
         dateOfBirth: dateOfBirth.trim() || undefined,
         parentEmail: parentEmail.trim() || undefined,
@@ -154,8 +212,20 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
         countryCode: cc ? cc : undefined,
         district: dist || undefined,
         registrationType,
-        previousSchool:
-          registrationType === "continuing" ? previousSchool.trim() : undefined,
+        previousSchool: registrationType === "first" ? previousSchool.trim() : undefined,
+        parentAliveStatus: parentAliveStatus || undefined,
+        parentFullName: parentFullName.trim() || undefined,
+        parentPhone: parentPhone.trim() || undefined,
+        parentAddress: parentAddress.trim() || undefined,
+        religion: religion || undefined,
+        specialNeeds: specialNeeds.trim() || undefined,
+        boardingStatus: boardingStatus || undefined,
+        residenceAddress: residenceAddress.trim() || undefined,
+        medicalInfo: medicalInfo.trim() || undefined,
+        emergencyContactName: emergencyContactName.trim() || undefined,
+        emergencyContactPhone: emergencyContactPhone.trim() || undefined,
+        guardianName: guardianName.trim() || undefined,
+        guardianPhone: guardianPhone.trim() || undefined,
       });
       if (photoFile) {
         try {
@@ -208,6 +278,144 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
           </p>
         ) : null}
         <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <p className="col-span-full text-[11px] font-bold uppercase tracking-[0.12em] text-[#636e72]">
+            {t("students.form.sectionStudent")}
+          </p>
+          <label className="block text-xs font-semibold text-[#636e72]">
+            {t("students.form.firstName")} *
+            <input
+              required
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className={`${fieldClass} mt-1`}
+              autoComplete="given-name"
+            />
+          </label>
+          <label className="block text-xs font-semibold text-[#636e72]">
+            {t("students.form.middleName")}
+            <input
+              value={middleName}
+              onChange={(e) => setMiddleName(e.target.value)}
+              className={`${fieldClass} mt-1`}
+              autoComplete="additional-name"
+            />
+          </label>
+          <label className="block text-xs font-semibold text-[#636e72]">
+            {t("students.form.lastName")} *
+            <input
+              required
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              className={`${fieldClass} mt-1`}
+              autoComplete="family-name"
+            />
+          </label>
+          <label className="block text-xs font-semibold text-[#636e72]">
+            {t("students.form.dob")} *
+            <input
+              type="date"
+              required
+              value={dateOfBirth}
+              onChange={(e) => setDateOfBirth(e.target.value)}
+              className={`${fieldClass} mt-1`}
+            />
+          </label>
+          <label className="block text-xs font-semibold text-[#636e72]">
+            {t("students.form.gender")} *
+            <select
+              required
+              value={gender}
+              onChange={(e) => setGender(e.target.value)}
+              className={`${fieldClass} mt-1`}
+            >
+              <option value="">{t("students.form.genderUnset")}</option>
+              <option value="Female">{t("students.form.genderFemale")}</option>
+              <option value="Male">{t("students.form.genderMale")}</option>
+              <option value="Other">{t("students.form.genderOther")}</option>
+            </select>
+          </label>
+          <label className="block text-xs font-semibold text-[#636e72]">
+            {t("students.form.boardingStatus")} *
+            <select
+              required
+              value={boardingStatus}
+              onChange={(e) =>
+                setBoardingStatus(
+                  e.target.value as "boarding" | "day_half" | "day_full" | "",
+                )
+              }
+              className={`${fieldClass} mt-1`}
+            >
+              <option value="">{t("students.form.boardingStatusUnset")}</option>
+              <option value="day_half">{t("students.form.boardingStatusDayHalf")}</option>
+              <option value="day_full">{t("students.form.boardingStatusDayFull")}</option>
+              <option value="boarding">{t("students.form.boardingStatusBoarding")}</option>
+            </select>
+          </label>
+          <label className="block text-xs font-semibold text-[#636e72]">
+            {t("students.form.religion")} *
+            <select
+              required
+              value={religion}
+              onChange={(e) => setReligion(e.target.value)}
+              className={`${fieldClass} mt-1`}
+            >
+              <option value="">{t("students.form.religionUnset")}</option>
+              {religions.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-xs font-semibold text-[#636e72] sm:col-span-2 lg:col-span-3">
+            {t("students.form.specialNeeds")}
+            <input
+              value={specialNeeds}
+              onChange={(e) => setSpecialNeeds(e.target.value)}
+              className={`${fieldClass} mt-1`}
+              placeholder={t("students.form.specialNeedsPlaceholder")}
+            />
+          </label>
+          <label className="block text-xs font-semibold text-[#636e72] sm:col-span-2 lg:col-span-3">
+            {t("students.form.residenceAddress")} *
+            <textarea
+              required
+              value={residenceAddress}
+              onChange={(e) => setResidenceAddress(e.target.value)}
+              className={`${fieldClass} mt-1 min-h-[84px]`}
+              placeholder={t("students.form.residenceAddressPlaceholder")}
+            />
+          </label>
+          <label className="block text-xs font-semibold text-[#636e72] sm:col-span-2 lg:col-span-3">
+            {t("students.form.medicalInfo")}
+            <textarea
+              value={medicalInfo}
+              onChange={(e) => setMedicalInfo(e.target.value)}
+              className={`${fieldClass} mt-1 min-h-[84px]`}
+              placeholder={t("students.form.medicalInfoPlaceholder")}
+            />
+          </label>
+          <label className="block text-xs font-semibold text-[#636e72]">
+            {t("students.form.roll")}
+            <input
+              value={rollNumber}
+              onChange={(e) => setRollNumber(e.target.value)}
+              className={`${fieldClass} mt-1`}
+            />
+          </label>
+          <label className="block text-xs font-semibold text-[#636e72]">
+            {t("students.form.section")}
+            <input
+              value={sectionName}
+              onChange={(e) => setSectionName(e.target.value)}
+              className={`${fieldClass} mt-1`}
+            />
+          </label>
+
+          <p className="col-span-full mt-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[#636e72]">
+            {t("students.form.sectionRegistration")}
+          </p>
           <label className="block min-w-0 text-xs font-semibold text-[#636e72]">
             {t("students.form.registrationType")} *
             <select
@@ -216,7 +424,7 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
               onChange={(e) => {
                 const v = e.target.value as "first" | "continuing";
                 setRegistrationType(v);
-                if (v === "first") setPreviousSchool("");
+                if (v === "continuing") setPreviousSchool("");
               }}
               className={`${fieldClass} mt-1`}
             >
@@ -224,11 +432,57 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
               <option value="continuing">{t("students.form.registrationContinuing")}</option>
             </select>
           </label>
-          {registrationType === "continuing" ? (
-            <label className="block min-w-0 text-xs font-semibold text-[#636e72] sm:col-span-2 lg:col-span-2">
-              {t("students.form.previousSchool")} *
+          <label className="block text-xs font-semibold text-[#636e72]">
+            {t("students.form.classroom")} *
+            <select
+              required
+              value={classRoomId}
+              onChange={(e) => setClassRoomId(e.target.value)}
+              className={`${fieldClass} mt-1`}
+            >
+              <option value="">{t("students.form.classroomUnset")}</option>
+              {kindergartenRooms.length > 0 ? (
+                <optgroup label={t("students.form.classGroupKindergarten")}>
+                  {kindergartenRooms.map((r) => (
+                    <option key={r.id} value={String(r.id)}>
+                      {r.name}
+                      {r.academicYear ? ` (${r.academicYear})` : ""}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
+              {lowerPrimaryRooms.length > 0 ? (
+                <optgroup label={t("students.form.classGroupLowerPrimary")}>
+                  {lowerPrimaryRooms.map((r) => (
+                    <option key={r.id} value={String(r.id)}>
+                      {r.name}
+                      {r.academicYear ? ` (${r.academicYear})` : ""}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
+              {upperPrimaryRooms.length > 0 ? (
+                <optgroup label={t("students.form.classGroupUpperPrimary")}>
+                  {upperPrimaryRooms.map((r) => (
+                    <option key={r.id} value={String(r.id)}>
+                      {r.name}
+                      {r.academicYear ? ` (${r.academicYear})` : ""}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
+              {otherRooms.map((r) => (
+                <option key={r.id} value={String(r.id)}>
+                  {r.name}
+                  {r.academicYear ? ` (${r.academicYear})` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          {registrationType === "first" ? (
+            <label className="block min-w-0 text-xs font-semibold text-[#636e72] sm:col-span-2 lg:col-span-1">
+              {t("students.form.previousSchool")}
               <input
-                required
                 value={previousSchool}
                 onChange={(e) => setPreviousSchool(e.target.value)}
                 className={`${fieldClass} mt-1`}
@@ -237,8 +491,9 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
             </label>
           ) : null}
           <label className="block min-w-0 text-xs font-semibold text-[#636e72]">
-            {t("students.form.nationality")}
+            {t("students.form.nationality")} *
             <select
+              required
               value={nationality}
               onChange={(e) => setNationality(e.target.value)}
               className={`${fieldClass} mt-1`}
@@ -252,8 +507,9 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
             </select>
           </label>
           <label className="block min-w-0 text-xs font-semibold text-[#636e72]">
-            {t("students.form.country")}
+            {t("students.form.country")} *
             <select
+              required
               value={countryCode}
               onChange={(e) => {
                 setCountryCode(e.target.value);
@@ -291,36 +547,7 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
               ))}
             </select>
           </label>
-          <label className="block text-xs font-semibold text-[#636e72]">
-            {t("students.form.firstName")} *
-            <input
-              required
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              className={`${fieldClass} mt-1`}
-              autoComplete="given-name"
-            />
-          </label>
-          <label className="block text-xs font-semibold text-[#636e72]">
-            {t("students.form.lastName")} *
-            <input
-              required
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              className={`${fieldClass} mt-1`}
-              autoComplete="family-name"
-            />
-          </label>
-          <label className="block text-xs font-semibold text-[#636e72]">
-            {t("students.form.dob")}
-            <input
-              type="date"
-              value={dateOfBirth}
-              onChange={(e) => setDateOfBirth(e.target.value)}
-              className={`${fieldClass} mt-1`}
-            />
-          </label>
-          <label className="block text-xs font-semibold text-[#636e72] sm:col-span-2 lg:col-span-1">
+          <label className="block text-xs font-semibold text-[#636e72] sm:col-span-2 lg:col-span-3">
             {t("students.photo.labelAdmission")}
             <input
               type="file"
@@ -329,61 +556,175 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
               onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
             />
           </label>
-          <label className="block text-xs font-semibold text-[#636e72]">
-            {t("students.form.parentEmail")}
-            <input
-              type="email"
-              value={parentEmail}
-              onChange={(e) => setParentEmail(e.target.value)}
-              className={`${fieldClass} mt-1`}
-              autoComplete="email"
-            />
-          </label>
-          <label className="block text-xs font-semibold text-[#636e72]">
-            {t("students.form.gender")}
+
+          <div className="col-span-full mt-2 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <p className="col-span-full text-[11px] font-bold uppercase tracking-[0.12em] text-[#636e72]">
+              {t("students.form.sectionParentGuardian")}
+            </p>
+            <label className="block text-xs font-semibold text-[#636e72]">
+            {t("students.form.parentAliveStatus")} *
             <select
-              value={gender}
-              onChange={(e) => setGender(e.target.value)}
+              required
+              value={parentAliveStatus}
+              onChange={(e) => {
+                const next = e.target.value as "both" | "one" | "none" | "";
+                setParentAliveStatus(next);
+                if (next !== "one") setSingleParentType("");
+                if (next === "none") {
+                  setParentFullName("");
+                  setParentPhone("");
+                  setParentEmail("");
+                  setParentAddress("");
+                } else {
+                  setGuardianName("");
+                  setGuardianPhone("");
+                }
+              }}
               className={`${fieldClass} mt-1`}
             >
-              <option value="">{t("students.form.genderUnset")}</option>
-              <option value="Female">{t("students.form.genderFemale")}</option>
-              <option value="Male">{t("students.form.genderMale")}</option>
-              <option value="Other">{t("students.form.genderOther")}</option>
+              <option value="">{t("students.form.parentAliveUnset")}</option>
+              <option value="both">{t("students.form.parentAliveBoth")}</option>
+              <option value="one">{t("students.form.parentAliveOne")}</option>
+              <option value="none">{t("students.form.parentAliveNone")}</option>
             </select>
-          </label>
-          <label className="block text-xs font-semibold text-[#636e72]">
-            {t("students.form.roll")}
-            <input
-              value={rollNumber}
-              onChange={(e) => setRollNumber(e.target.value)}
-              className={`${fieldClass} mt-1`}
-            />
-          </label>
-          <label className="block text-xs font-semibold text-[#636e72]">
-            {t("students.form.section")}
-            <input
-              value={sectionName}
-              onChange={(e) => setSectionName(e.target.value)}
-              className={`${fieldClass} mt-1`}
-            />
-          </label>
-          <label className="block text-xs font-semibold text-[#636e72]">
-            {t("students.form.classroom")}
-            <select
-              value={classRoomId}
-              onChange={(e) => setClassRoomId(e.target.value)}
-              className={`${fieldClass} mt-1`}
-            >
-              <option value="">{t("students.form.classroomUnset")}</option>
-              {rooms.map((r) => (
-                <option key={r.id} value={String(r.id)}>
-                  {r.name}
-                  {r.academicYear ? ` (${r.academicYear})` : ""}
-                </option>
-              ))}
-            </select>
-          </label>
+            </label>
+            {parentAliveStatus === "one" ? (
+              <label className="block text-xs font-semibold text-[#636e72]">
+              {t("students.form.singleParentType")}
+              <select
+                value={singleParentType}
+                onChange={(e) => setSingleParentType(e.target.value as "mother" | "father" | "")}
+                className={`${fieldClass} mt-1`}
+              >
+                <option value="">{t("students.form.singleParentTypeUnset")}</option>
+                <option value="mother">{t("students.form.singleParentMother")}</option>
+                <option value="father">{t("students.form.singleParentFather")}</option>
+              </select>
+              </label>
+            ) : null}
+            {parentAliveStatus === "both" || parentAliveStatus === "one" ? (
+              <>
+              <label className="block text-xs font-semibold text-[#636e72]">
+                {parentAliveStatus === "one" && singleParentType
+                  ? t("students.form.parentFullNameSingle").replace(
+                      "{parent}",
+                      singleParentType === "mother"
+                        ? t("students.form.singleParentMother")
+                        : t("students.form.singleParentFather"),
+                    )
+                  : t("students.form.parentFullName")} *
+                <input
+                  required
+                  value={parentFullName}
+                  onChange={(e) => setParentFullName(e.target.value)}
+                  className={`${fieldClass} mt-1`}
+                  autoComplete="name"
+                />
+              </label>
+              <label className="block text-xs font-semibold text-[#636e72]">
+                {parentAliveStatus === "one" && singleParentType
+                  ? t("students.form.parentPhoneSingle").replace(
+                      "{parent}",
+                      singleParentType === "mother"
+                        ? t("students.form.singleParentMother")
+                        : t("students.form.singleParentFather"),
+                    )
+                  : t("students.form.parentPhone")} *
+                <input
+                  required
+                  type="tel"
+                  value={parentPhone}
+                  onChange={(e) => setParentPhone(e.target.value)}
+                  className={`${fieldClass} mt-1`}
+                  autoComplete="tel"
+                />
+              </label>
+              <label className="block text-xs font-semibold text-[#636e72]">
+                {parentAliveStatus === "one" && singleParentType
+                  ? t("students.form.parentEmailSingle").replace(
+                      "{parent}",
+                      singleParentType === "mother"
+                        ? t("students.form.singleParentMother")
+                        : t("students.form.singleParentFather"),
+                    )
+                  : t("students.form.parentEmail")}
+                <input
+                  type="email"
+                  value={parentEmail}
+                  onChange={(e) => setParentEmail(e.target.value)}
+                  className={`${fieldClass} mt-1`}
+                  autoComplete="email"
+                />
+              </label>
+              <label className="block text-xs font-semibold text-[#636e72] sm:col-span-2 lg:col-span-3">
+                {parentAliveStatus === "one" && singleParentType
+                  ? t("students.form.parentAddressSingle").replace(
+                      "{parent}",
+                      singleParentType === "mother"
+                        ? t("students.form.singleParentMother")
+                        : t("students.form.singleParentFather"),
+                    )
+                  : t("students.form.parentAddress")}
+                <input
+                  required
+                  value={parentAddress}
+                  onChange={(e) => setParentAddress(e.target.value)}
+                  className={`${fieldClass} mt-1`}
+                  autoComplete="street-address"
+                />
+              </label>
+              </>
+            ) : null}
+            {parentAliveStatus === "none" ? (
+              <>
+              <label className="block text-xs font-semibold text-[#636e72]">
+                {t("students.form.guardianName")} *
+                <input
+                  required
+                  value={guardianName}
+                  onChange={(e) => setGuardianName(e.target.value)}
+                  className={`${fieldClass} mt-1`}
+                  autoComplete="name"
+                />
+              </label>
+              <label className="block text-xs font-semibold text-[#636e72]">
+                {t("students.form.guardianPhone")} *
+                <input
+                  type="tel"
+                  required
+                  value={guardianPhone}
+                  onChange={(e) => setGuardianPhone(e.target.value)}
+                  className={`${fieldClass} mt-1`}
+                  autoComplete="tel"
+                />
+              </label>
+              </>
+            ) : null}
+            <p className="col-span-full mt-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#636e72]">
+              {t("students.form.sectionNextOfKin")}
+            </p>
+            <label className="block text-xs font-semibold text-[#636e72]">
+              {t("students.form.emergencyContactName")} *
+              <input
+                required
+                value={emergencyContactName}
+                onChange={(e) => setEmergencyContactName(e.target.value)}
+                className={`${fieldClass} mt-1`}
+                autoComplete="name"
+              />
+            </label>
+            <label className="block text-xs font-semibold text-[#636e72]">
+              {t("students.form.emergencyContactPhone")} *
+              <input
+                type="tel"
+                required
+                value={emergencyContactPhone}
+                onChange={(e) => setEmergencyContactPhone(e.target.value)}
+                className={`${fieldClass} mt-1`}
+                autoComplete="tel"
+              />
+            </label>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2 pt-2">
           <button

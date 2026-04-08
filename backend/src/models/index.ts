@@ -39,6 +39,7 @@ export class Student extends Model {
   declare id: number;
   declare admissionNumber: string;
   declare firstName: string;
+  declare middleName: string | null;
   declare lastName: string;
   declare dateOfBirth: string | null;
   declare parentEmail: string | null;
@@ -52,6 +53,19 @@ export class Student extends Model {
   declare district: string | null;
   declare registrationType: string;
   declare previousSchool: string | null;
+  declare parentAliveStatus: "both" | "one" | "none" | null;
+  declare parentFullName: string | null;
+  declare parentPhone: string | null;
+  declare parentAddress: string | null;
+  declare religion: string | null;
+  declare specialNeeds: string | null;
+  declare boardingStatus: string | null;
+  declare residenceAddress: string | null;
+  declare medicalInfo: string | null;
+  declare emergencyContactName: string | null;
+  declare emergencyContactPhone: string | null;
+  declare guardianName: string | null;
+  declare guardianPhone: string | null;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -259,6 +273,11 @@ export function setupDatabase(config: Config): Sequelize {
         allowNull: false,
         field: "first_name",
       },
+      middleName: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+        field: "middle_name",
+      },
       lastName: {
         type: DataTypes.STRING(100),
         allowNull: false,
@@ -295,6 +314,70 @@ export function setupDatabase(config: Config): Sequelize {
         type: DataTypes.STRING(200),
         allowNull: true,
         field: "previous_school",
+      },
+      parentAliveStatus: {
+        type: DataTypes.STRING(16),
+        allowNull: true,
+        field: "parent_alive_status",
+      },
+      parentFullName: {
+        type: DataTypes.STRING(120),
+        allowNull: true,
+        field: "parent_full_name",
+      },
+      parentPhone: {
+        type: DataTypes.STRING(32),
+        allowNull: true,
+        field: "parent_phone",
+      },
+      parentAddress: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        field: "parent_address",
+      },
+      religion: {
+        type: DataTypes.STRING(80),
+        allowNull: true,
+      },
+      specialNeeds: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        field: "special_needs",
+      },
+      boardingStatus: {
+        type: DataTypes.STRING(16),
+        allowNull: true,
+        field: "boarding_status",
+      },
+      residenceAddress: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        field: "residence_address",
+      },
+      medicalInfo: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        field: "medical_info",
+      },
+      emergencyContactName: {
+        type: DataTypes.STRING(120),
+        allowNull: true,
+        field: "emergency_contact_name",
+      },
+      emergencyContactPhone: {
+        type: DataTypes.STRING(32),
+        allowNull: true,
+        field: "emergency_contact_phone",
+      },
+      guardianName: {
+        type: DataTypes.STRING(120),
+        allowNull: true,
+        field: "guardian_name",
+      },
+      guardianPhone: {
+        type: DataTypes.STRING(32),
+        allowNull: true,
+        field: "guardian_phone",
       },
     },
     {

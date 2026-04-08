@@ -58,6 +58,15 @@ export function StudentDetailModal({
   const [registrationType, setRegistrationType] = useState<"first" | "continuing">("first");
   const [previousSchool, setPreviousSchool] = useState("");
   const [saving, setSaving] = useState(false);
+  const kindergartenRooms = rooms.filter((r) => /^KG[1-3]$/i.test(r.name.trim()));
+  const lowerPrimaryRooms = rooms.filter((r) => /^P[1-3]$/i.test(r.name.trim()));
+  const upperPrimaryRooms = rooms.filter((r) => /^P[4-7]$/i.test(r.name.trim()));
+  const otherRooms = rooms.filter(
+    (r) =>
+      !/^KG[1-3]$/i.test(r.name.trim()) &&
+      !/^P[1-3]$/i.test(r.name.trim()) &&
+      !/^P[4-7]$/i.test(r.name.trim()),
+  );
 
   useEffect(() => {
     if (studentId == null) {
@@ -281,6 +290,12 @@ export function StudentDetailModal({
               {!editing ? (
                 <dl className="space-y-2 text-sm">
                   <div className="flex justify-between gap-4 border-b border-[#f0ebe3] py-2">
+                    <dt className="text-[#636e72]">{t("students.col.admission")}</dt>
+                    <dd className="font-mono font-semibold text-[#2d3436]">
+                      {row.admissionNumber}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-4 border-b border-[#f0ebe3] py-2">
                     <dt className="text-[#636e72]">{t("students.col.nationality")}</dt>
                     <dd className="min-w-0 text-right font-medium text-[#2d3436]">
                       {row.nationality ?? "—"}
@@ -349,6 +364,14 @@ export function StudentDetailModal({
                 </dl>
               ) : (
                 <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+                  <label className="block min-w-0 text-xs font-semibold text-[#636e72] sm:col-span-2">
+                    {t("students.col.admission")}
+                    <input
+                      disabled
+                      className={`${fieldClass} mt-1 font-mono disabled:opacity-80`}
+                      value={row.admissionNumber}
+                    />
+                  </label>
                   <label className="block min-w-0 text-xs font-semibold text-[#636e72]">
                     {t("students.form.registrationType")} *
                     <select
@@ -502,7 +525,34 @@ export function StudentDetailModal({
                       onChange={(e) => setClassRoomId(e.target.value)}
                     >
                       <option value="">{t("students.form.classroomUnset")}</option>
-                      {rooms.map((r) => (
+                      {kindergartenRooms.length > 0 ? (
+                        <optgroup label={t("students.form.classGroupKindergarten")}>
+                          {kindergartenRooms.map((r) => (
+                            <option key={r.id} value={String(r.id)}>
+                              {r.name} ({r.academicYear})
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null}
+                      {lowerPrimaryRooms.length > 0 ? (
+                        <optgroup label={t("students.form.classGroupLowerPrimary")}>
+                          {lowerPrimaryRooms.map((r) => (
+                            <option key={r.id} value={String(r.id)}>
+                              {r.name} ({r.academicYear})
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null}
+                      {upperPrimaryRooms.length > 0 ? (
+                        <optgroup label={t("students.form.classGroupUpperPrimary")}>
+                          {upperPrimaryRooms.map((r) => (
+                            <option key={r.id} value={String(r.id)}>
+                              {r.name} ({r.academicYear})
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null}
+                      {otherRooms.map((r) => (
                         <option key={r.id} value={String(r.id)}>
                           {r.name} ({r.academicYear})
                         </option>

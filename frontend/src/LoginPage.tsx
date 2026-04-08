@@ -172,8 +172,22 @@ export function LoginPage({
   useEffect(() => {
     setRememberEmail(defaultRememberEmail);
   }, [defaultRememberEmail]);
-  const [heroImageOk, setHeroImageOk] = useState(true);
   const [shake, setShake] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  const sliderImages = [
+    "/login-slide-1.jpg",
+    "/login-slide-2.jpg",
+    "/login-slide-3.jpg",
+    "/login-slide-4.jpg",
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % sliderImages.length);
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, []);
   const prevError = useRef<string | null>(null);
 
   const handleSubmit = useCallback(
@@ -220,28 +234,28 @@ export function LoginPage({
 
       {/* Left — photo + teal overlay + wave clip on large screens */}
       <div
-        className="login-hero-wave relative h-[220px] w-full shrink-0 overflow-hidden rounded-b-[2.5rem] sm:h-[280px] lg:h-auto lg:min-h-screen lg:w-[46%] lg:rounded-none"
+        className="login-hero-wave relative h-[220px] w-full shrink-0 overflow-hidden rounded-b-[2.5rem] sm:h-[280px] lg:h-auto lg:min-h-screen lg:w-[46%] lg:rounded-none bg-[#e8e4dc]"
       >
-        {heroImageOk ? (
-          <img
-            src="/login-hero.png"
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover"
-            onError={() => setHeroImageOk(false)}
-          />
-        ) : (
-          <div
-            className="absolute inset-0 bg-gradient-to-br from-[#dce8de] via-[#c5dff0] to-[#e8e4dc]"
-            aria-hidden
-          />
-        )}
+        {sliderImages.map((src, index) => {
+          const isActive = index === currentSlide;
+          return (
+            <img
+              key={index}
+              src={src}
+              alt=""
+              className={`absolute inset-0 h-full w-full object-cover transition-all duration-[1500ms] ease-in-out ${
+                isActive ? "opacity-100 scale-100" : "opacity-0 scale-110"
+              }`}
+            />
+          );
+        })}
         <div
-          className="absolute inset-0 bg-gradient-to-br from-[#6a9570]/70 via-[#5a8faf]/55 to-[#8fb892]/65"
+          className="absolute inset-0 bg-gradient-to-br from-[#1a365d]/85 via-[#1e3a8a]/60 to-[#ff7a00]/50"
           aria-hidden
         />
         <div className="relative z-10 hidden h-full min-h-[220px] flex-col justify-end p-8 text-[#fffcf7] lg:flex lg:justify-center lg:p-14">
           <p className="text-3xl font-bold tracking-tight drop-shadow-sm">
-            Queens Junior School
+            Queens Nursery and Primary School, Bunamwaya
           </p>
           <p className="mt-3 max-w-sm text-sm leading-relaxed text-white/95">
             Staff portal — secure access to records, schedules, and school
@@ -255,11 +269,18 @@ export function LoginPage({
         className={`neo-app-bg flex flex-1 flex-col justify-center px-6 py-10 sm:px-10 lg:px-16 xl:px-20 ${shake ? "animate-login-shake" : ""}`}
       >
         <div className="neo-card mx-auto w-full max-w-md px-8 py-9 sm:px-10 sm:py-10">
+          <div className="mb-3 flex justify-center">
+            <img
+              src="/school-badge.png"
+              alt="School badge"
+              className="h-16 w-16 rounded-full border border-[#d9d0c4] object-cover shadow-sm"
+            />
+          </div>
           <h1 className="text-center text-3xl font-bold text-[#2d3436]">
             {twoFactorChallenge ? "Verify it’s you" : "Welcome"}
           </h1>
           <p className="mt-1 text-center text-sm font-medium text-[#636e72]">
-            Queens Junior School
+            Queens Nursery and Primary School, Bunamwaya
           </p>
           <p className="mt-2 text-center text-sm text-[#636e72]/85">
             {twoFactorChallenge
@@ -269,14 +290,14 @@ export function LoginPage({
 
           {successBanner ? (
             <div
-              className="mt-6 flex items-start justify-between gap-2 rounded-xl border border-[#b8d8ba]/80 bg-[#e8f4e9] px-3 py-2.5 text-sm text-[#2d3436]"
+              className="mt-6 flex items-start justify-between gap-2 rounded-xl border border-[#1a365d]/20 bg-[#f0f4f8] px-3 py-2.5 text-sm text-[#2d3436]"
               role="status"
             >
               <span>{successBanner}</span>
               <button
                 type="button"
                 onClick={onDismissSuccessBanner}
-                className="shrink-0 rounded-lg px-1.5 text-[#5a8faf] hover:underline"
+                className="shrink-0 rounded-lg px-1.5 text-[#1a365d] hover:underline"
                 aria-label="Dismiss"
               >
                 Dismiss
@@ -286,9 +307,9 @@ export function LoginPage({
 
           {twoFactorChallenge ? (
             <form className="mt-10 space-y-5" onSubmit={handle2faSubmit} noValidate>
-              <p className="rounded-xl border border-[#b9d9eb]/50 bg-[#eef6f9]/80 px-3 py-2 text-center text-xs font-medium text-[#2d3436]">
+              <p className="rounded-xl border border-[#ff7a00]/30 bg-[#fff8f3] px-3 py-2 text-center text-xs font-medium text-[#2d3436]">
                 Code sent to{" "}
-                <span className="font-semibold text-[#5a8faf]">
+                <span className="font-semibold text-[#ff7a00]">
                   {twoFactorChallenge.maskedEmail}
                 </span>
               </p>
@@ -296,7 +317,7 @@ export function LoginPage({
                 <label htmlFor={otpId} className="sr-only">
                   Verification code
                 </label>
-                <div className="neo-inset flex h-12 items-center gap-3 px-4 transition-shadow focus-within:ring-2 focus-within:ring-[#b9d9eb]/70">
+                <div className="neo-inset flex h-12 items-center gap-3 px-4 transition-shadow focus-within:ring-2 focus-within:ring-[#ff7a00]/50">
                   <LockIcon className="shrink-0 text-[#636e72]" />
                   <input
                     id={otpId}
@@ -324,11 +345,11 @@ export function LoginPage({
               <button
                 type="submit"
                 disabled={loading || otp.length < 6}
-                className="h-12 w-full rounded-full bg-gradient-to-br from-[#cde8cf] to-[#8fb892] text-[15px] font-bold text-[#2d3436] shadow-[4px_4px_12px_rgba(120,150,125,0.4),-2px_-2px_8px_rgba(255,255,255,0.85)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-12 w-full rounded-full bg-gradient-to-br from-[#1e3a8a] to-[#1a365d] hover:from-[#ff9f43] hover:to-[#ff7a00] text-[15px] font-bold text-white shadow-[4px_4px_12px_rgba(26,54,93,0.3),-2px_-2px_8px_rgba(255,255,255,0.85)] hover:shadow-[4px_4px_12px_rgba(255,122,0,0.3),-2px_-2px_8px_rgba(255,255,255,0.85)] transition-all duration-300 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:from-[#1e3a8a] disabled:hover:to-[#1a365d]"
               >
                 {loading ? (
                   <span className="inline-flex items-center justify-center gap-2">
-                    <span className="size-4 animate-spin rounded-full border-2 border-[#2d3436]/25 border-t-[#2d3436]" />
+                    <span className="size-4 animate-spin rounded-full border-2 border-white/25 border-t-white" />
                     Verifying…
                   </span>
                 ) : (
@@ -342,7 +363,7 @@ export function LoginPage({
                   onCancelTwoFactor?.();
                 }}
                 disabled={loading}
-                className="w-full text-center text-xs font-semibold text-[#5a8faf] transition hover:text-[#2d3436] hover:underline disabled:opacity-50"
+                className="w-full text-center text-xs font-semibold text-[#ff7a00] transition hover:text-[#1a365d] hover:underline disabled:opacity-50"
               >
                 Use a different account
               </button>
@@ -353,7 +374,7 @@ export function LoginPage({
               <label htmlFor={emailId} className="sr-only">
                 Email
               </label>
-              <div className="neo-inset flex h-12 items-center gap-3 px-4 transition-shadow focus-within:ring-2 focus-within:ring-[#b9d9eb]/70">
+              <div className="neo-inset flex h-12 items-center gap-2 px-4 transition-shadow focus-within:ring-2 focus-within:ring-[#ff7a00]/50">
                 <UserIcon className="shrink-0 text-[#636e72]" />
                 <input
                   id={emailId}
@@ -375,7 +396,7 @@ export function LoginPage({
               <label htmlFor={passwordId} className="sr-only">
                 Password
               </label>
-              <div className="neo-inset flex h-12 items-center gap-2 px-4 transition-shadow focus-within:ring-2 focus-within:ring-[#b9d9eb]/70">
+              <div className="neo-inset flex h-12 items-center gap-2 px-4 transition-shadow focus-within:ring-2 focus-within:ring-[#ff7a00]/50">
                 <LockIcon className="shrink-0 text-[#636e72]" />
                 <input
                   id={passwordId}
@@ -391,7 +412,7 @@ export function LoginPage({
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#636e72] transition-colors hover:bg-[#b9d9eb]/35 hover:text-[#5a8faf] disabled:opacity-50"
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#636e72] transition-colors hover:bg-[#ff7a00]/10 hover:text-[#ff7a00] disabled:opacity-50"
                   disabled={loading}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
@@ -409,13 +430,13 @@ export function LoginPage({
                     checked={rememberEmail}
                     onChange={(e) => setRememberEmail(e.target.checked)}
                     disabled={loading}
-                    className="size-4 rounded border-[#b8d8ba] bg-[#faf7f0] text-[#6a9570] focus:ring-[#b9d9eb]/80"
+                    className="size-4 rounded border-[#1a365d]/30 bg-[#faf7f0] text-[#ff7a00] focus:ring-[#ff7a00]/50"
                   />
                   Remember me
                 </label>
                 <button
                   type="button"
-                  className="text-xs font-medium text-[#636e72] transition hover:text-[#5a8faf] hover:underline"
+                  className="text-xs font-medium text-[#636e72] transition hover:text-[#ff7a00] hover:underline"
                   onClick={onForgotPassword}
                 >
                   Forgot password?
@@ -435,11 +456,11 @@ export function LoginPage({
             <button
               type="submit"
               disabled={loading}
-              className="h-12 w-full rounded-full bg-gradient-to-br from-[#cde8cf] to-[#8fb892] text-[15px] font-bold text-[#2d3436] shadow-[4px_4px_12px_rgba(120,150,125,0.4),-2px_-2px_8px_rgba(255,255,255,0.85)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+              className="h-12 w-full rounded-full bg-gradient-to-br from-[#1e3a8a] to-[#1a365d] hover:from-[#ff9f43] hover:to-[#ff7a00] text-[15px] font-bold text-white shadow-[4px_4px_12px_rgba(26,54,93,0.3),-2px_-2px_8px_rgba(255,255,255,0.85)] hover:shadow-[4px_4px_12px_rgba(255,122,0,0.3),-2px_-2px_8px_rgba(255,255,255,0.85)] transition-all duration-300 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:from-[#1e3a8a] disabled:hover:to-[#1a365d]"
             >
               {loading ? (
                 <span className="inline-flex items-center justify-center gap-2">
-                  <span className="size-4 animate-spin rounded-full border-2 border-[#2d3436]/25 border-t-[#2d3436]" />
+                  <span className="size-4 animate-spin rounded-full border-2 border-white/25 border-t-white" />
                   Logging in…
                 </span>
               ) : (
@@ -452,7 +473,7 @@ export function LoginPage({
           <div className="mt-10 flex justify-center gap-3">
             <a
               href="#"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#faf7f0] to-[#ebe4d9] text-[#636e72] shadow-[3px_3px_8px_rgba(200,188,170,0.35),-2px_-2px_6px_rgba(255,255,255,0.9)] transition hover:text-[#5a8faf]"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#faf7f0] to-[#ebe4d9] text-[#636e72] shadow-[3px_3px_8px_rgba(200,188,170,0.35),-2px_-2px_6px_rgba(255,255,255,0.9)] transition hover:text-[#1a365d]"
               aria-label="Facebook"
               onClick={(e) => e.preventDefault()}
             >
@@ -460,7 +481,7 @@ export function LoginPage({
             </a>
             <a
               href="#"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#faf7f0] to-[#ebe4d9] text-[#636e72] shadow-[3px_3px_8px_rgba(200,188,170,0.35),-2px_-2px_6px_rgba(255,255,255,0.9)] transition hover:text-[#5a8faf]"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#faf7f0] to-[#ebe4d9] text-[#636e72] shadow-[3px_3px_8px_rgba(200,188,170,0.35),-2px_-2px_6px_rgba(255,255,255,0.9)] transition hover:text-[#1a365d]"
               aria-label="Twitter"
               onClick={(e) => e.preventDefault()}
             >
@@ -468,7 +489,7 @@ export function LoginPage({
             </a>
             <a
               href="#"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#faf7f0] to-[#ebe4d9] text-[#636e72] shadow-[3px_3px_8px_rgba(200,188,170,0.35),-2px_-2px_6px_rgba(255,255,255,0.9)] transition hover:text-[#5a8faf]"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#faf7f0] to-[#ebe4d9] text-[#636e72] shadow-[3px_3px_8px_rgba(200,188,170,0.35),-2px_-2px_6px_rgba(255,255,255,0.9)] transition hover:text-[#1a365d]"
               aria-label="LinkedIn"
               onClick={(e) => e.preventDefault()}
             >

@@ -10,6 +10,7 @@ export type StudentApiRow = {
   id: number;
   admissionNumber: string;
   firstName: string;
+  middleName: string | null;
   lastName: string;
   fullName: string;
   dateOfBirth: string | null;
@@ -28,6 +29,19 @@ export type StudentApiRow = {
   district: string | null;
   registrationType: string;
   previousSchool: string | null;
+  parentAliveStatus: string | null;
+  parentFullName: string | null;
+  parentPhone: string | null;
+  parentAddress: string | null;
+  religion: string | null;
+  specialNeeds: string | null;
+  boardingStatus: string | null;
+  residenceAddress: string | null;
+  medicalInfo: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  guardianName: string | null;
+  guardianPhone: string | null;
 };
 
 export type ClassRoomOption = {
@@ -91,6 +105,7 @@ export async function fetchClassrooms(): Promise<ClassRoomOption[]> {
 
 export type CreateStudentBody = {
   firstName: string;
+  middleName?: string;
   lastName: string;
   dateOfBirth?: string;
   parentEmail?: string;
@@ -103,6 +118,19 @@ export type CreateStudentBody = {
   district?: string;
   registrationType?: "first" | "continuing";
   previousSchool?: string;
+  parentAliveStatus?: "both" | "one" | "none";
+  parentFullName?: string;
+  parentPhone?: string;
+  parentAddress?: string;
+  religion?: string;
+  specialNeeds?: string;
+  boardingStatus?: "boarding" | "day_half" | "day_full";
+  residenceAddress?: string;
+  medicalInfo?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  guardianName?: string;
+  guardianPhone?: string;
 };
 
 export async function createStudent(body: CreateStudentBody): Promise<StudentApiRow> {
@@ -122,6 +150,7 @@ export async function createStudent(body: CreateStudentBody): Promise<StudentApi
 
 export type UpdateStudentBody = {
   firstName?: string;
+  middleName?: string | null;
   lastName?: string;
   dateOfBirth?: string | null;
   parentEmail?: string | null;
@@ -134,6 +163,19 @@ export type UpdateStudentBody = {
   district?: string | null;
   registrationType?: "first" | "continuing";
   previousSchool?: string | null;
+  parentAliveStatus?: "both" | "one" | "none" | null;
+  parentFullName?: string | null;
+  parentPhone?: string | null;
+  parentAddress?: string | null;
+  religion?: string | null;
+  specialNeeds?: string | null;
+  boardingStatus?: "boarding" | "day_half" | "day_full" | null;
+  residenceAddress?: string | null;
+  medicalInfo?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  guardianName?: string | null;
+  guardianPhone?: string | null;
 };
 
 export async function updateStudent(
