@@ -163,10 +163,31 @@ export function StudentsListPanel({
 
   return (
     <>
+      {error ? (
+        <div className="fixed inset-0 z-[70] bg-[#2d3436]/45 backdrop-blur-[1px]">
+          <div className="absolute left-1/2 top-6 w-[min(92vw,520px)] -translate-x-1/2 rounded-xl border border-rose-200 bg-white p-3 shadow-[0_18px_40px_rgba(45,52,54,0.35)]">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-sm font-semibold text-rose-700">{error}</p>
+              <button
+                type="button"
+                aria-label="Dismiss error"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-rose-200 text-rose-700 hover:bg-rose-50"
+                onClick={() => setError(null)}
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" aria-hidden>
+                  <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <section className="overflow-hidden rounded-2xl border border-[#ebe4d9] bg-[#fffcf7] shadow-[6px_8px_24px_rgba(45,52,54,0.08)]">
         <div className="flex flex-col gap-4 border-b border-[#ebe4d9] bg-gradient-to-r from-[#f4faf5] via-[#f8f9f6] to-[#eef6f9] px-5 py-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
           <div className="min-w-0 shrink-0">
-            <h2 className="text-base font-bold tracking-tight text-[#2d3436]">{title}</h2>
+            {title.trim() ? (
+              <h2 className="text-base font-bold tracking-tight text-[#2d3436]">{title}</h2>
+            ) : null}
           </div>
           <div className="flex min-w-0 w-full flex-col gap-3 sm:max-w-none sm:flex-1 sm:flex-row sm:flex-wrap sm:items-end sm:justify-end">
             <div className="flex min-w-0 flex-1 flex-col gap-1 sm:max-w-md">
@@ -236,11 +257,6 @@ export function StudentsListPanel({
             </div>
           </div>
         </div>
-        {error ? (
-          <p className="border-b border-[#ebe4d9] px-5 py-3 text-sm text-rose-800" role="alert">
-            {error}
-          </p>
-        ) : null}
         <div className="min-w-0 overflow-hidden">
           <table className="table-fixed w-full text-left text-sm">
             <thead className="sticky top-0 z-[1] border-b border-[#ebe4d9] bg-[#faf7f0]/95 text-[10px] font-bold uppercase tracking-wide text-[#636e72] backdrop-blur-sm sm:text-[11px]">

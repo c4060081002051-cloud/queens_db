@@ -46,11 +46,7 @@ export function StudentsSectionPage({
           showDirectoryTools
           refreshKey={listRefresh}
           classNameFilter={classNameFilter}
-          title={
-            classNameFilter
-              ? `${t("students.tableCaption")} - ${classNameFilter}`
-              : t("students.tableCaption")
-          }
+          title=""
         />
       )}
     </div>

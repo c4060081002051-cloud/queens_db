@@ -19,6 +19,10 @@ import { SettingsModesPanel } from "./components/settings/SettingsModesPanel";
 import { ExpensesAllPage } from "./components/expenses/ExpensesAllPage";
 import { SchoolExpensesPanel } from "./components/expenses/SchoolExpensesPanel";
 import {
+  ClassesSectionPage,
+  type ClassesSection,
+} from "./components/classes/ClassesSectionPage";
+import {
   StudentsSectionPage,
   type StudentNavSection,
 } from "./components/students/StudentsSectionPage";
@@ -423,9 +427,9 @@ type InboxScreen =
 type PersistedViewState = {
   settingsPanel: string | null;
   inboxScreen: InboxScreen;
-  mainView: "dashboard" | "expenses" | "students";
+  mainView: "dashboard" | "expenses" | "students" | "classes";
   studentSection: StudentNavSection;
-  selectedClassName: string | null;
+  classesSection: ClassesSection;
 };
 
 function readPersistedViewState(): PersistedViewState | null {
@@ -434,7 +438,9 @@ function readPersistedViewState(): PersistedViewState | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<PersistedViewState>;
     const mainView =
-      parsed.mainView === "expenses" || parsed.mainView === "students"
+      parsed.mainView === "expenses" ||
+      parsed.mainView === "students" ||
+      parsed.mainView === "classes"
         ? parsed.mainView
         : "dashboard";
     const studentSection =
@@ -442,6 +448,14 @@ function readPersistedViewState(): PersistedViewState | null {
       parsed.studentSection === "import"
         ? parsed.studentSection
         : "all";
+    const classesSection: ClassesSection =
+      parsed.classesSection === "sections_streams" ||
+      parsed.classesSection === "class_students" ||
+      parsed.classesSection === "class_teachers" ||
+      parsed.classesSection === "class_categories" ||
+      parsed.classesSection === "class_reports"
+        ? parsed.classesSection
+        : "all_classes";
     const inboxScreen: InboxScreen =
       parsed.inboxScreen?.screen === "list" &&
       (parsed.inboxScreen.kind === "notifications" || parsed.inboxScreen.kind === "messages")
@@ -457,8 +471,7 @@ function readPersistedViewState(): PersistedViewState | null {
       inboxScreen,
       mainView,
       studentSection,
-      selectedClassName:
-        typeof parsed.selectedClassName === "string" ? parsed.selectedClassName : null,
+      classesSection,
     };
   } catch {
     return null;
@@ -496,14 +509,14 @@ export function Dashboard({
   const [dash, setDash] = useState<DashboardPayload | null>(null);
   const [dashLoading, setDashLoading] = useState(false);
   const [dashError, setDashError] = useState<string | null>(null);
-  const [mainView, setMainView] = useState<"dashboard" | "expenses" | "students">(
+  const [mainView, setMainView] = useState<"dashboard" | "expenses" | "students" | "classes">(
     initialView?.mainView ?? "dashboard",
   );
   const [studentSection, setStudentSection] = useState<StudentNavSection>(
     initialView?.studentSection ?? "all",
   );
-  const [selectedClassName, setSelectedClassName] = useState<string | null>(
-    initialView?.selectedClassName ?? null,
+  const [classesSection, setClassesSection] = useState<ClassesSection>(
+    initialView?.classesSection ?? "all_classes",
   );
 
   const refreshHeaderInbox = useCallback(async () => {
@@ -554,13 +567,13 @@ export function Dashboard({
         inboxScreen,
         mainView,
         studentSection,
-        selectedClassName,
+        classesSection,
       };
       sessionStorage.setItem(DASHBOARD_VIEW_STATE_KEY, JSON.stringify(value));
     } catch {
       // Ignore storage failures (e.g. privacy mode/storage disabled).
     }
-  }, [settingsPanel, inboxScreen, mainView, studentSection, selectedClassName]);
+  }, [settingsPanel, inboxScreen, mainView, studentSection, classesSection]);
 
   const directoryCards = buildDirectoryStatCards(dash?.stats ?? null, dashLoading);
   const learners = dash?.learners ?? [];
@@ -617,7 +630,6 @@ export function Dashboard({
         setMainView("dashboard");
         setSettingsPanel(null);
         setInboxScreen({ screen: "home" });
-        setSelectedClassName(null);
       }}
       onSelectSettingsPanel={(panel) => {
         setInboxScreen({ screen: "home" });
@@ -628,14 +640,12 @@ export function Dashboard({
         setInboxScreen({ screen: "home" });
         setMainView("students");
         setStudentSection(section);
-        setSelectedClassName(null);
       }}
-      onSelectClassList={(className) => {
+      onSelectClassSection={(section) => {
         setSettingsPanel(null);
         setInboxScreen({ screen: "home" });
-        setMainView("students");
-        setStudentSection("all");
-        setSelectedClassName(className);
+        setMainView("classes");
+        setClassesSection(section);
       }}
       onAccountUpdated={onAccountUpdated}
     >
@@ -671,12 +681,15 @@ export function Dashboard({
         ) : mainView === "expenses" ? (
           <ExpensesAllPage />
         ) : mainView === "students" ? (
-          <StudentsSectionPage section={studentSection} classNameFilter={selectedClassName} />
+          <StudentsSectionPage section={studentSection} classNameFilter={null} />
+        ) : mainView === "classes" ? (
+          <ClassesSectionPage section={classesSection} />
         ) : null}
         {settingsPanel === "modes" ||
         inboxScreen.screen !== "home" ||
         mainView === "expenses" ||
-        mainView === "students" ? null : (
+        mainView === "students" ||
+        mainView === "classes" ? null : (
           <>
         {profileError ? (
           <div
