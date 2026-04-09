@@ -88,6 +88,7 @@ export function StudentsListPanel({
   const [profileCard, setProfileCard] = useState<StudentApiRow | null>(null);
   const [pendingDelete, setPendingDelete] = useState<StudentApiRow | null>(null);
   const [confirmDeleteRow, setConfirmDeleteRow] = useState<StudentApiRow | null>(null);
+  const [updatedStudentNotice, setUpdatedStudentNotice] = useState<string | null>(null);
   const deleteTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -137,19 +138,20 @@ export function StudentsListPanel({
     setModalId(id);
   };
 
-  const reloadList = () => {
+  const reloadList = async () => {
     const q = classNameFilter ? `${classNameFilter} ${applied}`.trim() : applied;
-    void fetchStudents({ q, sortBy, sortDir, limit })
-      .then((rows) =>
-        setItems(
-          classNameFilter
-            ? rows.filter(
-                (r) => (r.className ?? "").trim().toLowerCase() === classNameFilter.trim().toLowerCase(),
-              )
-            : rows,
-        ),
-      )
-      .catch(() => {});
+    try {
+      const rows = await fetchStudents({ q, sortBy, sortDir, limit });
+      setItems(
+        classNameFilter
+          ? rows.filter(
+              (r) => (r.className ?? "").trim().toLowerCase() === classNameFilter.trim().toLowerCase(),
+            )
+          : rows,
+      );
+    } catch {
+      /* keep existing list on failure */
+    }
   };
 
   const handleExport = () => {
@@ -207,8 +209,21 @@ export function StudentsListPanel({
     };
   }, []);
 
+  useEffect(() => {
+    if (!updatedStudentNotice) return;
+    const timer = window.setTimeout(() => setUpdatedStudentNotice(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [updatedStudentNotice]);
+
   return (
     <>
+      {updatedStudentNotice ? (
+        <div className="fixed right-4 top-4 z-[80] max-w-md rounded-2xl border border-[#cde8cf] bg-[#fffcf7] px-4 py-3 text-sm text-[#2d3436] shadow-[8px_12px_30px_rgba(45,52,54,0.18)]">
+          <p>
+            <span className="font-semibold">{updatedStudentNotice}</span>, Information has been updated.
+          </p>
+        </div>
+      ) : null}
       {confirmDeleteRow ? (
         <section className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <button
@@ -348,7 +363,6 @@ export function StudentsListPanel({
                 <th className="w-[9%] px-1 py-3 sm:px-2">{t("students.col.section")}</th>
                 <th className="w-[8%] px-1 py-3 sm:px-2">{t("students.col.roll")}</th>
                 <th className="w-[11%] px-1 py-3 sm:px-2">{t("students.col.dob")}</th>
-                <th className="min-w-0 px-1 py-3 sm:px-2">{t("students.col.parentEmail")}</th>
                 <th className="w-[10%] px-1 py-3 sm:px-2">{t("students.col.admitted")}</th>
                 {showDirectoryTools ? (
                   <th className="w-24 px-1 py-3 text-center sm:w-28 sm:px-2">
@@ -361,7 +375,7 @@ export function StudentsListPanel({
               {loading ? (
                 <tr>
                   <td
-                    colSpan={showDirectoryTools ? 11 : 8}
+                    colSpan={showDirectoryTools ? 9 : 7}
                     className="px-5 py-10 text-center text-sm text-[#636e72]"
                   >
                     {t("students.loading")}
@@ -371,7 +385,7 @@ export function StudentsListPanel({
               {!loading && items.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={showDirectoryTools ? 11 : 8}
+                    colSpan={showDirectoryTools ? 9 : 7}
                     className="px-5 py-10 text-center text-sm text-[#636e72]"
                   >
                     {applied ? t("students.noMatches") : t("students.empty")}
@@ -413,9 +427,6 @@ export function StudentsListPanel({
                       </td>
                       <td className="min-w-0 truncate px-1 py-2 text-[10px] tabular-nums text-[#636e72] sm:px-2 sm:text-sm">
                         {row.dateOfBirthFormatted ?? "—"}
-                      </td>
-                      <td className="min-w-0 truncate px-1 py-2 text-xs text-[#636e72] sm:px-2 sm:text-sm">
-                        {row.parentEmail ?? "—"}
                       </td>
                       <td className="min-w-0 truncate px-1 py-2 text-[10px] tabular-nums text-[#636e72] sm:px-2 sm:text-sm">
                         {row.admittedAt}
@@ -499,7 +510,6 @@ export function StudentsListPanel({
             <p className="rounded-xl bg-white/80 px-3 py-2"><span className="font-semibold text-[#636e72]">{t("students.col.class")}:</span> {profileCard.className ?? "—"}</p>
             <p className="rounded-xl bg-white/80 px-3 py-2"><span className="font-semibold text-[#636e72]">{t("students.col.section")}:</span> {profileCard.sectionName ?? "—"}</p>
             <p className="rounded-xl bg-white/80 px-3 py-2"><span className="font-semibold text-[#636e72]">{t("students.col.dob")}:</span> {profileCard.dateOfBirthFormatted ?? "—"}</p>
-            <p className="rounded-xl bg-white/80 px-3 py-2"><span className="font-semibold text-[#636e72]">{t("students.col.parentEmail")}:</span> {profileCard.parentEmail ?? "—"}</p>
             <p className="rounded-xl bg-white/80 px-3 py-2"><span className="font-semibold text-[#636e72]">{t("students.col.nationality")}:</span> {profileCard.nationality ?? "—"}</p>
             <p className="rounded-xl bg-white/80 px-3 py-2"><span className="font-semibold text-[#636e72]">{t("students.col.country")}:</span> {profileCard.countryName ?? profileCard.countryCode ?? "—"}</p>
             <p className="rounded-xl bg-white/80 px-3 py-2"><span className="font-semibold text-[#636e72]">{t("students.col.district")}:</span> {profileCard.district ?? "—"}</p>
@@ -537,6 +547,15 @@ export function StudentsListPanel({
           setModalInitialEdit(false);
         }}
         onChanged={reloadList}
+        onSaved={(studentName) => {
+          setUpdatedStudentNotice(studentName);
+          const id = modalId;
+          if (id != null && profileCard?.id === id) {
+            void fetchStudent(id).then((row) => setProfileCard(row));
+          }
+          setModalId(null);
+          setModalInitialEdit(false);
+        }}
       />
     </>
   );

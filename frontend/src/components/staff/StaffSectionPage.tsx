@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 export type StaffNavSection = "teaching" | "nonTeaching";
 export type TeachingSection = "all" | "kindergarten" | "lower_primary" | "upper_primary";
@@ -110,6 +110,105 @@ function FieldLabel({
       {children}
       {required ? <span className="text-[#c0392b]"> *</span> : null}
     </label>
+  );
+}
+
+const staffActionsMenuItemClass =
+  "flex w-full items-center px-3 py-2 text-left text-xs font-semibold text-[#2d3436] transition hover:bg-[#eef6f9]";
+
+function StaffTableRowActionsMenu({
+  rowKey,
+  openMenuKey,
+  onOpenMenuChange,
+  onProfile,
+  onEdit,
+  onDelete,
+}: {
+  rowKey: string;
+  openMenuKey: string | null;
+  onOpenMenuChange: (key: string | null) => void;
+  onProfile: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const open = openMenuKey === rowKey;
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: PointerEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        onOpenMenuChange(null);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onOpenMenuChange(null);
+    }
+    document.addEventListener("pointerdown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open, onOpenMenuChange]);
+
+  return (
+    <td className="px-4 py-3">
+      <div className="relative flex justify-center" ref={wrapRef}>
+        <button
+          type="button"
+          aria-label="Open row actions"
+          aria-expanded={open}
+          aria-haspopup="menu"
+          onClick={() => onOpenMenuChange(open ? null : rowKey)}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#faf7f0] text-xl font-bold leading-none text-[#636e72] ring-1 ring-[#ebe4d9] transition hover:bg-white"
+        >
+          <span className="block translate-y-px" aria-hidden>
+            ⋮
+          </span>
+        </button>
+        {open ? (
+          <div
+            role="menu"
+            className="absolute right-0 top-full z-30 mt-1 min-w-[10rem] rounded-xl border border-[#ebe4d9] bg-[#fffcf7] py-1 shadow-[0_8px_24px_rgba(45,52,54,0.12)] ring-1 ring-black/5"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              className={staffActionsMenuItemClass}
+              onClick={() => {
+                onProfile();
+                onOpenMenuChange(null);
+              }}
+            >
+              Profile
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className={staffActionsMenuItemClass}
+              onClick={() => {
+                onEdit();
+                onOpenMenuChange(null);
+              }}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className={`${staffActionsMenuItemClass} text-[#a9332a]`}
+              onClick={() => {
+                onDelete();
+                onOpenMenuChange(null);
+              }}
+            >
+              Delete
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </td>
   );
 }
 
@@ -537,6 +636,7 @@ export function StaffSectionPage({
     kind: "teaching" | "nonTeaching";
     item: TeachingStaffRecord | NonTeachingStaffRecord;
   } | null>(null);
+  const [staffRowActionsMenuKey, setStaffRowActionsMenuKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (!pendingDelete) return;
@@ -680,7 +780,7 @@ export function StaffSectionPage({
           )}
 
           {showTeachingForm || selectedTeachingProfile ? null : (
-          <section className="neo-card overflow-hidden">
+          <section className="neo-card overflow-visible">
             <div className="border-b border-[#ebe4d9]/80 px-4 py-3 text-sm font-semibold text-[#2d3436]">
               {teachingSectionLabels[teachingSection]}
             </div>
@@ -699,33 +799,20 @@ export function StaffSectionPage({
                     <td className="px-4 py-3 font-semibold text-[#2d3436]">{teacher.name}</td>
                     <td className="px-4 py-3 text-xs text-[#636e72]">{teacher.subjects}</td>
                     <td className="px-4 py-3 text-xs text-[#2d3436]">{teacher.assignedClass ?? "—"}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-2">
-                        <button type="button" onClick={() => setSelectedTeachingProfile(teacher)} className="rounded-full bg-[#eef6f9] px-3 py-1 text-xs font-semibold text-[#2d3436]">Profile</button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const next = window.prompt("Edit teacher name", teacher.name);
-                            if (!next?.trim()) return;
-                            setTeachingStaff((prev) =>
-                              prev.map((x) => (x.id === teacher.id ? { ...x, name: next.trim() } : x)),
-                            );
-                          }}
-                          className="rounded-full bg-[#e8f2fa] px-3 py-1 text-xs font-semibold text-[#2d3436]"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setConfirmDelete({ kind: "teaching", item: teacher });
-                          }}
-                          className="rounded-full bg-[#fce8e5] px-3 py-1 text-xs font-semibold text-[#a9332a]"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
+                    <StaffTableRowActionsMenu
+                      rowKey={`teaching:${teacher.id}`}
+                      openMenuKey={staffRowActionsMenuKey}
+                      onOpenMenuChange={setStaffRowActionsMenuKey}
+                      onProfile={() => setSelectedTeachingProfile(teacher)}
+                      onEdit={() => {
+                        const next = window.prompt("Edit teacher name", teacher.name);
+                        if (!next?.trim()) return;
+                        setTeachingStaff((prev) =>
+                          prev.map((x) => (x.id === teacher.id ? { ...x, name: next.trim() } : x)),
+                        );
+                      }}
+                      onDelete={() => setConfirmDelete({ kind: "teaching", item: teacher })}
+                    />
                   </tr>
                 ))}
               </tbody>
@@ -847,7 +934,7 @@ export function StaffSectionPage({
           </div>
           )}
           {showNonTeachingForm || selectedNonTeachingProfile ? null : (
-          <section className="neo-card overflow-hidden">
+          <section className="neo-card overflow-visible">
             <div className="border-b border-[#ebe4d9]/80 px-4 py-3 text-sm font-semibold text-[#2d3436]">
               {nonTeachingCategoryLabels[nonTeachingCategory]}
             </div>
@@ -866,66 +953,24 @@ export function StaffSectionPage({
                     <td className="px-4 py-3 font-semibold text-[#2d3436]">{member.name}</td>
                     <td className="px-4 py-3 text-xs text-[#636e72]">{member.role}</td>
                     <td className="px-4 py-3 text-xs text-[#2d3436]">{nonTeachingCategoryLabels[member.category]}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-2">
-                        <button type="button" onClick={() => setSelectedNonTeachingProfile(member)} className="rounded-full bg-[#eef6f9] px-3 py-1 text-xs font-semibold text-[#2d3436]">Profile</button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const next = window.prompt("Edit staff name", member.name);
-                            if (!next?.trim()) return;
-                            setNonTeachingStaff((prev) =>
-                              prev.map((x) => (x.id === member.id ? { ...x, name: next.trim() } : x)),
-                            );
-                          }}
-                          className="rounded-full bg-[#e8f2fa] px-3 py-1 text-xs font-semibold text-[#2d3436]"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setConfirmDelete({ kind: "nonTeaching", item: member });
-                          }}
-                          className="rounded-full bg-[#fce8e5] px-3 py-1 text-xs font-semibold text-[#a9332a]"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
+                    <StaffTableRowActionsMenu
+                      rowKey={`nonTeaching:${member.id}`}
+                      openMenuKey={staffRowActionsMenuKey}
+                      onOpenMenuChange={setStaffRowActionsMenuKey}
+                      onProfile={() => setSelectedNonTeachingProfile(member)}
+                      onEdit={() => {
+                        const next = window.prompt("Edit staff name", member.name);
+                        if (!next?.trim()) return;
+                        setNonTeachingStaff((prev) =>
+                          prev.map((x) => (x.id === member.id ? { ...x, name: next.trim() } : x)),
+                        );
+                      }}
+                      onDelete={() => setConfirmDelete({ kind: "nonTeaching", item: member })}
+                    />
                   </tr>
                 ))}
               </tbody>
             </table>
-          </section>
-          )}
-          {showNonTeachingForm || selectedNonTeachingProfile ? null : (
-          <section className="neo-card overflow-hidden">
-            <div className="border-b border-[#ebe4d9]/80 px-4 py-3 text-sm font-semibold text-[#2d3436]">
-              Non-Teaching Staff by Category
-            </div>
-            <ul className="divide-y divide-[#ebe4d9]/70">
-              {(
-                [
-                  "administration",
-                  "finance",
-                  "library",
-                  "health",
-                  "operations",
-                ] as Exclude<NonTeachingCategory, "all">[]
-              ).map((category) => (
-                <li key={category} className="px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#636e72]">
-                    {nonTeachingCategoryLabels[category]}
-                  </p>
-                  <p className="mt-1 text-sm text-[#2d3436]">
-                    {nonTeachingStaff.filter((member) => member.category === category)
-                      .map((member) => member.name)
-                      .join(", ")}
-                  </p>
-                </li>
-              ))}
-            </ul>
           </section>
           )}
           {showNonTeachingForm || !selectedNonTeachingProfile ? null : (

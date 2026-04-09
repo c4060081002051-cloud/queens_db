@@ -84,6 +84,14 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
     "Other",
   ];
 
+  const inferSectionFromClassroomName = (name: string): string => {
+    const n = name.trim().toUpperCase();
+    if (/^KG[1-3]$/.test(n)) return "Kindergarten";
+    if (/^P[1-3]$/.test(n)) return "Lower Primary";
+    if (/^P[4-7]$/.test(n)) return "Upper Primary";
+    return "";
+  };
+
   useEffect(() => {
     let cancelled = false;
     void fetchClassrooms()
@@ -149,6 +157,17 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
       cancelled = true;
     };
   }, [countryCode, t]);
+
+  useEffect(() => {
+    const id = Number.parseInt(classRoomId, 10);
+    if (!Number.isFinite(id) || id <= 0) {
+      setSectionName("");
+      return;
+    }
+    const room = rooms.find((r) => r.id === id);
+    if (!room) return;
+    setSectionName(inferSectionFromClassroomName(room.name));
+  }, [classRoomId, rooms]);
 
   const resetForm = () => {
     setFirstName("");
@@ -408,9 +427,12 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
             {t("students.form.section")}
             <input
               value={sectionName}
-              onChange={(e) => setSectionName(e.target.value)}
+              readOnly
               className={`${fieldClass} mt-1`}
             />
+            <span className="mt-1 block text-[11px] text-[#636e72]">
+              Section is auto-filled from selected class.
+            </span>
           </label>
 
           <p className="col-span-full mt-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[#636e72]">

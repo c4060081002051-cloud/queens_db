@@ -39,7 +39,7 @@ type AdminLayoutProps = {
   /** Open a settings section from the sidebar (e.g. `modes`). */
   onSelectSettingsPanel?: (panel: string) => void;
   /** Students hub: open full-page list or admissions form. */
-  onSelectStudentSection?: (section: "all" | "admissions" | "profiles" | "import") => void;
+  onSelectStudentSection?: (section: "all" | "admissions" | "profiles" | "import" | "parents") => void;
   /** Staff hub: open teaching or non-teaching pages. */
   onSelectStaffSection?: (section: "teaching" | "nonTeaching") => void;
   /** Teaching staff submenu: open a specific teaching section page. */
@@ -52,6 +52,17 @@ type AdminLayoutProps = {
   ) => void;
   /** Open class-specific list page. */
   onSelectClassList?: (className: string) => void;
+  /** Finance hub: open finance landing or a specific section page. */
+  onSelectFinanceSection?: (
+    section:
+      | "overview"
+      | "daily_report"
+      | "debtors_report"
+      | "record_payment"
+      | "bursery"
+      | "staff_payment"
+      | "finance_summary",
+  ) => void;
   /** Refresh `/api/auth/me` after password or 2FA changes. */
   onAccountUpdated?: () => void;
 };
@@ -235,19 +246,6 @@ function IconPromotion({ className }: { className?: string }) {
   );
 }
 
-function IconStore({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="20" height="20" fill="none" viewBox="0 0 24 24" aria-hidden>
-      <path
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinejoin="round"
-        d="M3 10h18l-1.2 8.4a2 2 0 01-2 1.6H6.2a2 2 0 01-2-1.6L3 10zm0 0L2.5 6A1 1 0 013.5 5h17a1 1 0 011 .5L21 10M9 14h.01M15 14h.01"
-      />
-    </svg>
-  );
-}
-
 function IconSettings({ className }: { className?: string }) {
   return (
     <svg className={className} width="20" height="20" fill="none" viewBox="0 0 24 24" aria-hidden>
@@ -262,20 +260,6 @@ function IconSettings({ className }: { className?: string }) {
         strokeWidth="1.7"
         strokeLinejoin="round"
         d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"
-      />
-    </svg>
-  );
-}
-
-function IconMegaphone({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="20" height="20" fill="none" viewBox="0 0 24 24" aria-hidden>
-      <path
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M4 11v5l4 2v-9L4 11zm4-2l8-3v11l-8-3M16 8v8"
       />
     </svg>
   );
@@ -364,8 +348,16 @@ type NavLeaf = {
   badge?: string;
   settingsPanel?: string;
   inboxList?: "notifications" | "messages";
-  studentSection?: "all" | "admissions" | "profiles" | "import";
+  studentSection?: "all" | "admissions" | "profiles" | "import" | "parents";
   staffSection?: "teaching" | "nonTeaching";
+  financeSection?:
+    | "overview"
+    | "daily_report"
+    | "debtors_report"
+    | "record_payment"
+    | "bursery"
+    | "staff_payment"
+    | "finance_summary";
 };
 
 type NavGroup = { id: string; title: string; icon: NavIcon; items: NavLeaf[] };
@@ -382,6 +374,7 @@ function buildNavGroups(t: (key: string) => string): NavGroup[] {
         { icon: IconClipboard, label: t("nav.students.admissions"), studentSection: "admissions" },
         { icon: IconGradCap, label: t("nav.students.profiles"), studentSection: "profiles" },
         { icon: IconClipboard, label: t("nav.students.import"), studentSection: "import" },
+        { icon: IconUsers, label: t("nav.students.parents"), studentSection: "parents" },
       ],
     },
     {
@@ -432,14 +425,12 @@ function buildNavGroups(t: (key: string) => string): NavGroup[] {
       title: t("nav.operations"),
       icon: IconWallet,
       items: [
-        { icon: IconBook, label: t("nav.operations.library") },
-        { icon: IconStore, label: t("nav.operations.store") },
-        { icon: IconWallet, label: t("nav.operations.accounts") },
-        { icon: IconBus, label: t("nav.operations.transport") },
-        { icon: IconBuilding, label: t("nav.operations.hostel") },
-        { icon: IconBuilding, label: t("nav.operations.hostelManager") },
-        { icon: IconMegaphone, label: t("nav.operations.enquiries") },
-        { icon: IconSettings, label: t("nav.operations.enquiryCategory") },
+        { icon: IconClipboard, label: t("nav.operations.library"), financeSection: "daily_report" },
+        { icon: IconBook, label: t("nav.operations.store"), financeSection: "debtors_report" },
+        { icon: IconWallet, label: t("nav.operations.accounts"), financeSection: "record_payment" },
+        { icon: IconBus, label: t("nav.operations.transport"), financeSection: "bursery" },
+        { icon: IconUsers, label: t("nav.operations.hostel"), financeSection: "staff_payment" },
+        { icon: IconChartBars, label: t("nav.operations.hostelManager"), financeSection: "finance_summary" },
       ],
     },
     {
@@ -537,6 +528,7 @@ export function AdminLayout({
   onSelectTeachingSection,
   onSelectNonTeachingCategory,
   onSelectClassList,
+  onSelectFinanceSection,
   onAccountUpdated,
 }: AdminLayoutProps) {
   const { t, locale, setLocale } = useI18n();
@@ -771,6 +763,7 @@ export function AdminLayout({
                     type="button"
                     onClick={() =>
                       setOpenGroups((prev) => {
+                        if (group.id === "operations") onSelectFinanceSection?.("overview");
                         if (prev[group.id]) {
                           return { ...prev, [group.id]: false };
                         }
@@ -930,6 +923,9 @@ export function AdminLayout({
                                   }
                                   if (item.staffSection) {
                                     onSelectStaffSection?.(item.staffSection);
+                                  }
+                                  if (item.financeSection) {
+                                    onSelectFinanceSection?.(item.financeSection);
                                   }
                                   setSidebarOpen(false);
                                 }}

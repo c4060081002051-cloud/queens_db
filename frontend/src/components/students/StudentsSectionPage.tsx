@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { AdmissionImportTable } from "./AdmissionImportTable";
 import { NewAdmissionForm } from "./NewAdmissionForm";
+import { ParentsSectionPage } from "./ParentsSectionPage";
 import { StudentsListPanel } from "./StudentsListPanel";
 import { useI18n } from "../../i18n/I18nProvider";
 
-export type StudentNavSection = "all" | "admissions" | "profiles" | "import";
+export type StudentNavSection = "all" | "admissions" | "profiles" | "import" | "parents";
 
 export function StudentsSectionPage({
   section,
@@ -21,6 +22,8 @@ export function StudentsSectionPage({
       ? "students.page.admissionsTitle"
       : section === "import"
         ? "students.page.importTitle"
+      : section === "parents"
+        ? "students.page.parentsTitle"
       : section === "profiles"
         ? "students.page.profilesTitle"
         : "students.page.allTitle";
@@ -29,6 +32,8 @@ export function StudentsSectionPage({
       ? "students.page.introAdmissions"
       : section === "import"
         ? "students.page.introImport"
+      : section === "parents"
+        ? "students.page.introParents"
       : section === "profiles"
         ? "students.page.introProfiles"
         : "students.page.introAll";
@@ -44,6 +49,8 @@ export function StudentsSectionPage({
         <NewAdmissionForm onCreated={() => setListRefresh((k) => k + 1)} />
       ) : section === "import" ? (
         <AdmissionImportTable onDone={() => setListRefresh((k) => k + 1)} />
+      ) : section === "parents" ? (
+        <ParentsSectionPage />
       ) : (
         <StudentsListPanel
           limit={500}

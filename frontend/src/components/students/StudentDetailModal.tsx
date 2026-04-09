@@ -25,7 +25,8 @@ type StudentDetailModalProps = {
   /** When opening from the row “edit” action */
   initialEditing?: boolean;
   onClose: () => void;
-  onChanged: () => void;
+  onChanged: () => void | Promise<void>;
+  onSaved?: (studentName: string) => void;
 };
 
 export function StudentDetailModal({
@@ -33,6 +34,7 @@ export function StudentDetailModal({
   initialEditing = false,
   onClose,
   onChanged,
+  onSaved,
 }: StudentDetailModalProps) {
   const { t } = useI18n();
   const [row, setRow] = useState<StudentApiRow | null>(null);
@@ -41,6 +43,7 @@ export function StudentDetailModal({
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [firstName, setFirstName] = useState("");
+  const [middleName, setMiddleName] = useState("");
   const [lastName, setLastName] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [parentEmail, setParentEmail] = useState("");
@@ -58,6 +61,7 @@ export function StudentDetailModal({
   const [registrationType, setRegistrationType] = useState<"first" | "continuing">("first");
   const [previousSchool, setPreviousSchool] = useState("");
   const [saving, setSaving] = useState(false);
+  const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
   const kindergartenRooms = rooms.filter((r) => /^KG[1-3]$/i.test(r.name.trim()));
   const lowerPrimaryRooms = rooms.filter((r) => /^P[1-3]$/i.test(r.name.trim()));
   const upperPrimaryRooms = rooms.filter((r) => /^P[4-7]$/i.test(r.name.trim()));
@@ -67,6 +71,14 @@ export function StudentDetailModal({
       !/^P[1-3]$/i.test(r.name.trim()) &&
       !/^P[4-7]$/i.test(r.name.trim()),
   );
+
+  const inferSectionFromClassroomName = (name: string): string => {
+    const n = name.trim().toUpperCase();
+    if (/^KG[1-3]$/.test(n)) return "Kindergarten";
+    if (/^P[1-3]$/.test(n)) return "Lower Primary";
+    if (/^P[4-7]$/.test(n)) return "Upper Primary";
+    return "";
+  };
 
   useEffect(() => {
     if (studentId == null) {
@@ -91,6 +103,7 @@ export function StudentDetailModal({
         setNationalities(nat);
         setCountries(ctry);
         setFirstName(s.firstName);
+        setMiddleName(s.middleName ?? "");
         setLastName(s.lastName);
         setDateOfBirth(s.dateOfBirth ?? "");
         setParentEmail(s.parentEmail ?? "");
@@ -116,6 +129,16 @@ export function StudentDetailModal({
       cancelled = true;
     };
   }, [studentId, initialEditing]);
+
+  useEffect(() => {
+    if (!editing) return;
+    const roomId = Number.parseInt(classRoomId, 10);
+    if (!Number.isFinite(roomId) || roomId <= 0) return;
+    const room = rooms.find((r) => r.id === roomId);
+    if (!room) return;
+    const inferred = inferSectionFromClassroomName(room.name);
+    if (inferred) setSectionName(inferred);
+  }, [classRoomId, rooms, editing]);
 
   useEffect(() => {
     if (studentId == null || row == null || row.id !== studentId) return;
@@ -150,10 +173,25 @@ export function StudentDetailModal({
 
   if (studentId == null) return null;
 
-  const reload = async () => {
+  const reload = async (): Promise<StudentApiRow> => {
     const s = await fetchStudent(studentId);
     setRow(s);
-    onChanged();
+    setFirstName(s.firstName);
+    setMiddleName(s.middleName ?? "");
+    setLastName(s.lastName);
+    setDateOfBirth(s.dateOfBirth ?? "");
+    setParentEmail(s.parentEmail ?? "");
+    setGender(s.gender ?? "");
+    setRollNumber(s.rollNumber ?? "");
+    setSectionName(s.sectionName ?? "");
+    setClassRoomId(s.classRoomId != null ? String(s.classRoomId) : "");
+    setNationality(s.nationality ?? "");
+    setCountryCode(s.countryCode ?? "");
+    setDistrict(s.district ?? "");
+    setRegistrationType(s.registrationType === "continuing" ? "continuing" : "first");
+    setPreviousSchool(s.previousSchool ?? "");
+    await Promise.resolve(onChanged());
+    return s;
   };
 
   const handleSave = async () => {
@@ -166,12 +204,20 @@ export function StudentDetailModal({
       const dist = district.trim();
       await updateStudent(studentId, {
         firstName: firstName.trim(),
+        middleName: middleName.trim() || null,
         lastName: lastName.trim(),
         dateOfBirth: dateOfBirth.trim() || null,
         parentEmail: parentEmail.trim() || null,
         gender: gender.trim() || null,
         rollNumber: rollNumber.trim() || null,
-        sectionName: sectionName.trim() || null,
+        sectionName:
+          (() => {
+            const selectedRoom = rooms.find((r) => String(r.id) === classRoomId);
+            const inferred = selectedRoom
+              ? inferSectionFromClassroomName(selectedRoom.name)
+              : "";
+            return inferred || sectionName.trim() || null;
+          })(),
         classRoomId:
           cr != null && Number.isFinite(cr) && cr > 0 ? cr : null,
         nationality: nationality.trim() || null,
@@ -183,8 +229,11 @@ export function StudentDetailModal({
             ? previousSchool.trim() || null
             : null,
       });
-      await reload();
+      const saved = await reload();
       setEditing(false);
+      setConfirmSaveOpen(false);
+      onSaved?.(saved.fullName);
+      onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("students.form.error"));
     } finally {
@@ -196,7 +245,7 @@ export function StudentDetailModal({
     if (!window.confirm(t("students.modal.deleteConfirm"))) return;
     try {
       await deleteStudent(studentId);
-      onChanged();
+      await Promise.resolve(onChanged());
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("students.modal.deleteFailed"));
@@ -215,12 +264,47 @@ export function StudentDetailModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="student-modal-title"
-    >
+    <>
+      {confirmSaveOpen ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-[#2d3436]/35 backdrop-blur-[1px]"
+            onClick={() => setConfirmSaveOpen(false)}
+            aria-label="Close update confirmation"
+          />
+          <div className="relative w-full max-w-sm rounded-2xl border border-[#d9e4f0] bg-[#fffcf7] p-5 shadow-[8px_12px_40px_rgba(45,52,54,0.18)]">
+            <h3 className="text-base font-bold text-[#2d3436]">Confirm Update</h3>
+            <p className="mt-2 text-sm text-[#636e72]">
+              Do you want to update the information as provided?
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void handleSave()}
+                className="rounded-full bg-gradient-to-br from-[#b8d8ba] to-[#8fb892] px-5 py-2 text-sm font-bold text-[#2d3436] shadow-sm transition hover:brightness-105 disabled:opacity-50"
+              >
+                Yes
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => setConfirmSaveOpen(false)}
+                className="rounded-full bg-[#faf7f0] px-5 py-2 text-sm font-semibold text-[#636e72] ring-1 ring-[#ebe4d9] transition hover:bg-[#f0ebe3] disabled:opacity-50"
+              >
+                No
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="student-modal-title"
+      >
       <button
         type="button"
         className="absolute inset-0 bg-[#2d3436]/40 backdrop-blur-[2px]"
@@ -463,6 +547,14 @@ export function StudentDetailModal({
                     />
                   </label>
                   <label className="block text-xs font-semibold text-[#636e72] sm:col-span-1">
+                    {t("students.form.middleName")}
+                    <input
+                      className={`${fieldClass} mt-1`}
+                      value={middleName}
+                      onChange={(e) => setMiddleName(e.target.value)}
+                    />
+                  </label>
+                  <label className="block text-xs font-semibold text-[#636e72] sm:col-span-1">
                     {t("students.form.lastName")} *
                     <input
                       className={`${fieldClass} mt-1`}
@@ -515,7 +607,11 @@ export function StudentDetailModal({
                       className={`${fieldClass} mt-1`}
                       value={sectionName}
                       onChange={(e) => setSectionName(e.target.value)}
+                      readOnly
                     />
+                    <span className="mt-1 block text-[11px] text-[#636e72]">
+                      Section is auto-set from selected class.
+                    </span>
                   </label>
                   <label className="block text-xs font-semibold text-[#636e72] sm:col-span-2">
                     {t("students.form.classroom")}
@@ -585,7 +681,7 @@ export function StudentDetailModal({
                     <button
                       type="button"
                       disabled={saving}
-                      onClick={() => void handleSave()}
+                      onClick={() => setConfirmSaveOpen(true)}
                       className="rounded-full bg-gradient-to-br from-[#b8d8ba] to-[#8fb892] px-5 py-2 text-sm font-bold text-[#2d3436] shadow-sm transition hover:brightness-105 disabled:opacity-50"
                     >
                       {saving ? t("students.form.saving") : t("students.modal.save")}
@@ -593,28 +689,7 @@ export function StudentDetailModal({
                     <button
                       type="button"
                       disabled={saving}
-                      onClick={() => {
-                        setEditing(false);
-                        if (row) {
-                          setFirstName(row.firstName);
-                          setLastName(row.lastName);
-                          setDateOfBirth(row.dateOfBirth ?? "");
-                          setParentEmail(row.parentEmail ?? "");
-                          setGender(row.gender ?? "");
-                          setRollNumber(row.rollNumber ?? "");
-                          setSectionName(row.sectionName ?? "");
-                          setClassRoomId(row.classRoomId != null ? String(row.classRoomId) : "");
-                          setNationality(row.nationality ?? "");
-                          setCountryCode(row.countryCode ?? "");
-                          setDistrict(row.district ?? "");
-                          setRegistrationType(
-                            row.registrationType === "continuing"
-                              ? "continuing"
-                              : "first",
-                          );
-                          setPreviousSchool(row.previousSchool ?? "");
-                        }
-                      }}
+                      onClick={onClose}
                       className="rounded-full bg-[#faf7f0] px-5 py-2 text-sm font-semibold text-[#636e72] ring-1 ring-[#ebe4d9] transition hover:bg-[#f0ebe3]"
                     >
                       {t("students.modal.cancelEdit")}
@@ -626,6 +701,7 @@ export function StudentDetailModal({
           ) : null}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
