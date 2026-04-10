@@ -11,6 +11,7 @@ import {
   fetchClassrooms,
   fetchClassSections,
   fetchStudents,
+  fetchTeachers,
   updateClassCategory,
   updateClassSection,
   updateClassroom,
@@ -18,23 +19,32 @@ import {
   type ClassRoomOption,
   type ClassSectionOption,
   type StudentApiRow,
+  type TeacherOption,
 } from "../../api/students";
 import { useI18n } from "../../i18n/I18nProvider";
+import { StudentDetailModal } from "../students/StudentDetailModal";
 
 export type ClassesSection =
   | "all_classes"
   | "sections_streams"
   | "class_students"
+  | "class_students_roster"
   | "class_teachers"
   | "class_categories"
   | "class_reports";
 
 type Props = {
   section: ClassesSection;
+  /** When `section === "class_students_roster"`, which class roster to show. */
+  rosterClassId?: number | null;
+  onOpenClassRoster?: (classId: number) => void;
+  onCloseClassRoster?: () => void;
 };
 
 const cardClass = "rounded-2xl border border-[#ebe4d9] bg-[#fffcf7] p-5 shadow-[6px_8px_24px_rgba(45,52,54,0.08)]";
 const inputClass = "w-full rounded-lg border border-[#e0d8cc] bg-white px-3 py-2 text-sm outline-none focus:border-[#6a9570]/70";
+const rosterMoveSectionBtn =
+  "inline-flex items-center justify-center rounded-lg border border-[#d7e8ef] bg-gradient-to-br from-[#f2f7fb] to-[#e8f2f8] px-2.5 py-1.5 text-xs font-semibold text-[#2d5470] shadow-sm ring-1 ring-[#c5dce8]/40 transition hover:border-[#8bb8d4] hover:text-[#1a3d52] active:translate-y-px";
 
 function IconBtn({
   danger,
@@ -64,11 +74,17 @@ function IconBtn({
   );
 }
 
-export function ClassesSectionPage({ section }: Props) {
+export function ClassesSectionPage({
+  section,
+  rosterClassId = null,
+  onOpenClassRoster,
+  onCloseClassRoster,
+}: Props) {
   const { t } = useI18n();
   const [rooms, setRooms] = useState<ClassRoomOption[]>([]);
   const [categories, setCategories] = useState<ClassCategoryOption[]>([]);
   const [sections, setSections] = useState<ClassSectionOption[]>([]);
+  const [teachers, setTeachers] = useState<TeacherOption[]>([]);
   const [students, setStudents] = useState<StudentApiRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,11 +104,16 @@ export function ClassesSectionPage({ section }: Props) {
   const [editCategoryId, setEditCategoryId] = useState<number | null>(null);
   const [editClassId, setEditClassId] = useState<number | null>(null);
   const [editSectionId, setEditSectionId] = useState<number | null>(null);
-  const [studentClassFilter, setStudentClassFilter] = useState<string>("");
-  const [studentSectionFilter, setStudentSectionFilter] = useState<string>("");
+  const [rosterSectionFilter, setRosterSectionFilter] = useState<string>("");
+  const [rosterSortBy, setRosterSortBy] = useState<"name" | "stream">("name");
+  const [rosterSortDir, setRosterSortDir] = useState<"asc" | "desc">("asc");
   const [reportClassId, setReportClassId] = useState<string>("");
   const [reportTerm, setReportTerm] = useState<string>("");
   const [reportType, setReportType] = useState<"PDF" | "Excel">("PDF");
+  const [rosterStudentModal, setRosterStudentModal] = useState<{
+    studentId: number;
+    focusSection: boolean;
+  } | null>(null);
 
   const classesViewRows = useMemo(() => {
     const filtered = classFilterCategoryId
@@ -105,13 +126,71 @@ export function ClassesSectionPage({ section }: Props) {
     });
   }, [classFilterCategoryId, rooms, sections, students]);
 
-  const studentsViewRows = useMemo(() => {
-    return students.filter((s) => {
-      if (studentClassFilter && s.classRoomId !== Number(studentClassFilter)) return false;
-      if (studentSectionFilter && s.sectionName !== studentSectionFilter) return false;
+  const classStudentsSummaryRows = useMemo(() => {
+    return rooms.map((room) => {
+      const classSecs = sections.filter((x) => x.classRoomId === room.id);
+      const streamCounts = classSecs.map((sec) => {
+        const count = students.filter(
+          (st) =>
+            st.classRoomId === room.id && (st.sectionName ?? "").trim() === sec.name.trim(),
+        ).length;
+        return { name: sec.name, count };
+      });
+      const totalInClass = students.filter((st) => st.classRoomId === room.id).length;
+      return { room, streamCounts, totalInClass };
+    });
+  }, [rooms, sections, students]);
+
+  const classRosterRows = useMemo(() => {
+    if (rosterClassId == null || rosterClassId < 1) return [];
+    const filtered = students.filter((s) => {
+      if (s.classRoomId !== rosterClassId) return false;
+      if (rosterSectionFilter && s.sectionName !== rosterSectionFilter) return false;
       return true;
     });
-  }, [studentClassFilter, studentSectionFilter, students]);
+    const collator = new Intl.Collator(undefined, { sensitivity: "base" });
+    return [...filtered].sort((a, b) => {
+      if (rosterSortBy === "name") {
+        const c = collator.compare(a.fullName, b.fullName);
+        return rosterSortDir === "asc" ? c : -c;
+      }
+      const sa = (a.sectionName ?? "").trim() || "\uffff";
+      const sb = (b.sectionName ?? "").trim() || "\uffff";
+      const c = collator.compare(sa, sb);
+      return rosterSortDir === "asc" ? c : -c;
+    });
+  }, [rosterClassId, rosterSectionFilter, students, rosterSortBy, rosterSortDir]);
+
+  const rosterRoom = useMemo(
+    () => (rosterClassId != null && rosterClassId >= 1 ? rooms.find((r) => r.id === rosterClassId) ?? null : null),
+    [rooms, rosterClassId],
+  );
+
+  const rosterStreamNames = useMemo(() => {
+    if (rosterClassId == null || rosterClassId < 1) return [];
+    const names = sections
+      .filter((x) => x.classRoomId === rosterClassId)
+      .map((x) => x.name.trim())
+      .filter(Boolean);
+    return [...new Set(names)].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  }, [sections, rosterClassId]);
+
+  const selectedReportRoom = useMemo(() => {
+    const id = Number.parseInt(reportClassId, 10);
+    if (!Number.isFinite(id) || id < 1) return null;
+    return rooms.find((r) => r.id === id) ?? null;
+  }, [reportClassId, rooms]);
+
+  const reportStats = useMemo(() => {
+    if (!selectedReportRoom) return { students: 0, streams: 0 };
+    const studentsInClass = students.filter((s) => s.classRoomId === selectedReportRoom.id).length;
+    const streamsInClass = sections.filter((s) => s.classRoomId === selectedReportRoom.id).length;
+    return { students: studentsInClass, streams: streamsInClass };
+  }, [selectedReportRoom, students, sections]);
+
+  useEffect(() => {
+    setRosterSectionFilter("");
+  }, [rosterClassId]);
 
   const sectionsViewRows = useMemo(() => {
     const id = Number.parseInt(sectionFilterClassId, 10);
@@ -131,16 +210,18 @@ export function ClassesSectionPage({ section }: Props) {
   const loadDbData = async () => {
     setLoading(true);
     try {
-      const [roomRows, categoryRows, sectionRows, studentRows] = await Promise.all([
+      const [roomRows, categoryRows, sectionRows, studentRows, teacherRows] = await Promise.all([
         fetchClassrooms(),
         fetchClassCategories(),
         fetchClassSections(),
         fetchStudents({ limit: 500 }),
+        fetchTeachers(),
       ]);
       setRooms(roomRows);
       setCategories(categoryRows);
       setSections(sectionRows);
       setStudents(studentRows);
+      setTeachers(teacherRows);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load classes/sections");
@@ -271,6 +352,8 @@ export function ClassesSectionPage({ section }: Props) {
       ? "classes.page.sectionsStreamsTitle"
       : section === "class_students"
         ? "classes.page.classStudentsTitle"
+        : section === "class_students_roster"
+          ? "classes.page.classStudentsRosterTitle"
         : section === "class_teachers"
           ? "classes.page.classTeachersTitle"
           : section === "class_categories"
@@ -284,6 +367,8 @@ export function ClassesSectionPage({ section }: Props) {
       ? "classes.page.sectionsStreamsIntro"
       : section === "class_students"
         ? "classes.page.classStudentsIntro"
+        : section === "class_students_roster"
+          ? "classes.page.classStudentsRosterIntro"
         : section === "class_teachers"
           ? "classes.page.classTeachersIntro"
           : section === "class_categories"
@@ -437,12 +522,21 @@ export function ClassesSectionPage({ section }: Props) {
                 </label>
                 <label className="flex min-w-0 flex-col gap-1 text-xs font-semibold text-[#636e72]">
                   {t("classes.sections.col.teacher")}
-                  <input
+                  <select
                     value={sectionTeacher}
                     onChange={(e) => setSectionTeacher(e.target.value)}
                     className={inputClass}
-                    placeholder={t("classes.sections.placeholderTeacher")}
-                  />
+                  >
+                    <option value="">{t("classes.sections.placeholderTeacher")}</option>
+                    {sectionTeacher && !teachers.some((x) => x.displayName === sectionTeacher) ? (
+                      <option value={sectionTeacher}>{sectionTeacher}</option>
+                    ) : null}
+                    {teachers.map((teacher) => (
+                      <option key={teacher.id} value={teacher.displayName}>
+                        {teacher.displayName}
+                      </option>
+                    ))}
+                  </select>
                 </label>
                 <button
                   type="submit"
@@ -535,8 +629,32 @@ export function ClassesSectionPage({ section }: Props) {
       ) : null}
 
       <header className="border-b border-[#ebe4d9]/80 pb-4">
-        <h1 className="text-xl font-bold tracking-tight text-[#2d3436]">{t(titleKey)}</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[#636e72]">{t(introKey)}</p>
+        {section === "class_students_roster" ? (
+          <>
+            <button
+              type="button"
+              className="mb-3 inline-flex items-center gap-2 rounded-xl border border-[#e0d8cc] bg-white px-3 py-2 text-sm font-semibold text-[#2d3436] shadow-sm transition hover:bg-[#faf7f0]"
+              onClick={() => onCloseClassRoster?.()}
+            >
+              <span aria-hidden className="text-[#636e72]">
+                ←
+              </span>
+              {t("classes.classStudents.rosterBack")}
+            </button>
+            <h1 className="text-xl font-bold tracking-tight text-[#2d3436]">
+              {rosterRoom?.name ?? t("classes.classStudents.unknownClass")}
+              <span className="block text-base font-semibold text-[#636e72] sm:inline sm:before:content-['_·_']">
+                {t("classes.page.classStudentsRosterTitleSuffix")}
+              </span>
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[#636e72]">{t(introKey)}</p>
+          </>
+        ) : (
+          <>
+            <h1 className="text-xl font-bold tracking-tight text-[#2d3436]">{t(titleKey)}</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[#636e72]">{t(introKey)}</p>
+          </>
+        )}
       </header>
 
       {loading ? <p className="text-sm text-[#636e72]">{t("students.form.sectionLoading")}</p> : null}
@@ -776,24 +894,172 @@ export function ClassesSectionPage({ section }: Props) {
 
       {section === "class_students" ? (
         <section className={cardClass}>
-          <h2 className="text-base font-bold text-[#2d3436]">Class Students</h2>
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
-            <select value={studentClassFilter} onChange={(e) => setStudentClassFilter(e.target.value)} className={inputClass}>
-              <option value="">Filter by class</option>
-              {rooms.map((r) => <option key={r.id} value={String(r.id)}>{r.name}</option>)}
-            </select>
-            <select value={studentSectionFilter} onChange={(e) => setStudentSectionFilter(e.target.value)} className={inputClass}>
-              <option value="">Filter by Section</option>
-              {sections.filter((x) => !studentClassFilter || x.classRoomId === Number(studentClassFilter)).map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
-            </select>
-            <div className="rounded-lg border border-dashed border-[#d9cfbf] bg-[#fffaf2] px-3 py-2 text-xs text-[#636e72]">Bulk upload (Excel) can continue via admissions import.</div>
-          </div>
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="text-left text-[#636e72]"><tr><th>Name</th><th>Class</th><th>Section</th><th>Action</th></tr></thead>
-              <tbody>{studentsViewRows.map((s) => <tr key={s.id} className="border-t border-[#ebe4d9]"><td className="py-2">{s.fullName}</td><td>{s.className ?? "-"}</td><td>{s.sectionName ?? "-"}</td><td><span className="text-[#5a8faf]">Move section (edit student)</span></td></tr>)}</tbody>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-[#636e72]">
+            {t("classes.classStudents.summaryTableTitle")}
+          </h2>
+          <div className="mt-3 min-w-0 overflow-hidden">
+            <table className="table-fixed w-full text-left text-sm">
+              <thead className="border-b border-[#ebe4d9] text-[10px] font-bold uppercase tracking-wide text-[#636e72] sm:text-[11px]">
+                <tr>
+                  <th className="min-w-0 py-2 pr-2">{t("classes.classStudents.col.class")}</th>
+                  <th className="w-16 py-2 pr-2 text-center sm:w-20">{t("classes.classStudents.col.total")}</th>
+                  <th className="min-w-0 py-2 pr-2">{t("classes.classStudents.col.streams")}</th>
+                  <th className="w-28 py-2 text-right sm:w-32">{t("students.col.actions")}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#f0ebe3]">
+                {classStudentsSummaryRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-[#636e72]">
+                      {t("classes.sections.emptyNeedClasses")}
+                    </td>
+                  </tr>
+                ) : (
+                  classStudentsSummaryRows.map(({ room, streamCounts, totalInClass }) => {
+                    const streamLabel =
+                      streamCounts.length === 0
+                        ? "—"
+                        : streamCounts.map((x) => `${x.name}: ${x.count}`).join(" · ");
+                    return (
+                      <tr key={room.id} className="transition-colors hover:bg-[#f0f7f4]/90">
+                        <td className="min-w-0 truncate py-2 pr-2 font-semibold text-[#2d3436]">{room.name}</td>
+                        <td className="py-2 pr-2 text-center tabular-nums font-medium text-[#2d3436]">
+                          {totalInClass}
+                        </td>
+                        <td className="min-w-0 py-2 pr-2 text-xs leading-snug text-[#636e72] sm:text-sm">
+                          {streamLabel}
+                        </td>
+                        <td className="py-2 text-right">
+                          <button
+                            type="button"
+                            className="rounded-lg bg-gradient-to-br from-[#5a8faf] to-[#3d6f8a] px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:brightness-110 sm:text-sm"
+                            onClick={() => onOpenClassRoster?.(room.id)}
+                          >
+                            {t("classes.classStudents.viewAll")}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
             </table>
           </div>
+
+          <p className="mt-4 text-sm leading-relaxed text-[#636e72]">{t("classes.classStudents.hintViewAll")}</p>
+          <p className="mt-2 rounded-lg border border-dashed border-[#d9cfbf] bg-[#fffaf2] px-3 py-2 text-xs text-[#636e72]">
+            Bulk upload (Excel) can continue via admissions import.
+          </p>
+        </section>
+      ) : null}
+
+      {section === "class_students_roster" ? (
+        <section className={cardClass}>
+          {!rosterClassId || rosterClassId < 1 ? (
+            <p className="text-sm text-[#636e72]">{t("classes.classStudents.rosterInvalid")}</p>
+          ) : !rosterRoom ? (
+            <p className="text-sm text-[#636e72]">{t("classes.classStudents.rosterMissingClass")}</p>
+          ) : (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="flex flex-col gap-1 lg:col-span-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-[#636e72]">
+                    {t("toolbar.filter")} · {t("classes.classStudents.sortByStream")}
+                  </span>
+                  <select
+                    value={rosterSectionFilter}
+                    onChange={(e) => setRosterSectionFilter(e.target.value)}
+                    className={inputClass}
+                    aria-label={t("classes.classStudents.sortByStream")}
+                  >
+                    <option value="">{t("classes.classStudents.allStreams")}</option>
+                    {sections
+                      .filter((x) => x.classRoomId === rosterClassId)
+                      .map((s) => (
+                        <option key={s.id} value={s.name}>
+                          {s.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div className="flex flex-wrap items-end gap-3 sm:col-span-2 lg:col-span-2">
+                  <div className="flex min-w-[140px] flex-1 flex-col gap-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-[#636e72]">{t("toolbar.sort")}</span>
+                    <select
+                      value={rosterSortBy}
+                      onChange={(e) => setRosterSortBy(e.target.value as "name" | "stream")}
+                      className={inputClass}
+                    >
+                      <option value="name">{t("classes.classStudents.sortByName")}</option>
+                      <option value="stream">{t("classes.classStudents.sortByStream")}</option>
+                    </select>
+                  </div>
+                  <div className="flex min-w-[140px] flex-1 flex-col gap-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-[#636e72]">
+                      {t("dashboard.expense.sortDirection")}
+                    </span>
+                    <select
+                      value={rosterSortDir}
+                      onChange={(e) => setRosterSortDir(e.target.value as "asc" | "desc")}
+                      className={inputClass}
+                    >
+                      <option value="asc">{t("dashboard.expense.sort.az")}</option>
+                      <option value="desc">{t("dashboard.expense.sort.za")}</option>
+                    </select>
+                  </div>
+                  <p className="w-full text-xs text-[#636e72] sm:w-auto sm:self-center">
+                    {classRosterRows.length} {classRosterRows.length === 1 ? "student" : "students"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 min-w-0 overflow-hidden">
+                <table className="table-fixed w-full text-left text-sm">
+                  <thead className="border-b border-[#ebe4d9] text-[10px] font-bold uppercase tracking-wide text-[#636e72] sm:text-[11px]">
+                    <tr>
+                      <th className="min-w-0 py-2 pr-2">{t("students.col.name")}</th>
+                      <th className="hidden w-[28%] min-w-0 py-2 pr-2 sm:table-cell">{t("students.col.class")}</th>
+                      <th className="w-[22%] min-w-0 py-2 pr-2">{t("students.col.section")}</th>
+                      <th className="min-w-[11rem] py-2 pl-2 text-right sm:min-w-[13rem]">
+                        {t("students.col.actions")}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#f0ebe3]">
+                    {classRosterRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="py-8 text-center text-[#636e72]">
+                          {t("students.noMatches")}
+                        </td>
+                      </tr>
+                    ) : (
+                      classRosterRows.map((s) => (
+                        <tr key={s.id} className="transition-colors hover:bg-[#f0f7f4]/90">
+                          <td className="min-w-0 truncate py-2 pr-2 font-medium text-[#2d3436]">{s.fullName}</td>
+                          <td className="hidden min-w-0 truncate py-2 pr-2 sm:table-cell">{s.className ?? "—"}</td>
+                          <td className="min-w-0 truncate py-2 pr-2 text-[#636e72]">{s.sectionName ?? "—"}</td>
+                          <td className="py-2 pl-2 text-right">
+                            <div className="flex flex-wrap items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                className={rosterMoveSectionBtn}
+                                title={t("classes.classStudents.moveSectionHint")}
+                                onClick={() =>
+                                  setRosterStudentModal({ studentId: s.id, focusSection: true })
+                                }
+                              >
+                                {t("classes.classStudents.moveSection")}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </section>
       ) : null}
 
@@ -902,25 +1168,107 @@ export function ClassesSectionPage({ section }: Props) {
 
       {section === "class_reports" ? (
         <section className={cardClass}>
-          <h2 className="text-base font-bold text-[#2d3436]">Class Reports</h2>
+          <h2 className="text-base font-bold text-[#2d3436]">{t("classes.reports.cardTitle")}</h2>
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
-            <select value={reportClassId} onChange={(e) => setReportClassId(e.target.value)} className={inputClass}>
-              <option value="">Select class</option>
-              {rooms.map((r) => <option key={r.id} value={String(r.id)}>{r.name}</option>)}
-            </select>
-            <input value={reportTerm} onChange={(e) => setReportTerm(e.target.value)} className={inputClass} placeholder="Select Term (optional)" />
-            <select value={reportType} onChange={(e) => setReportType(e.target.value as "PDF" | "Excel")} className={inputClass}>
-              <option value="PDF">PDF</option>
-              <option value="Excel">Excel</option>
-            </select>
+            <label className="flex min-w-0 flex-col gap-1 text-xs font-semibold text-[#636e72]">
+              {t("classes.reports.fieldClass")} *
+              <select
+                value={reportClassId}
+                onChange={(e) => setReportClassId(e.target.value)}
+                className={inputClass}
+                aria-label={t("classes.reports.fieldClass")}
+              >
+                <option value="">{t("classes.reports.classPlaceholder")}</option>
+                {rooms.map((r) => (
+                  <option key={r.id} value={String(r.id)}>
+                    {r.name} ({r.academicYear})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex min-w-0 flex-col gap-1 text-xs font-semibold text-[#636e72]">
+              {t("classes.reports.fieldTerm")}
+              <input
+                value={reportTerm}
+                onChange={(e) => setReportTerm(e.target.value)}
+                className={inputClass}
+                placeholder={t("classes.reports.termPlaceholder")}
+              />
+            </label>
+            <label className="flex min-w-0 flex-col gap-1 text-xs font-semibold text-[#636e72]">
+              {t("classes.reports.fieldFormat")}
+              <select
+                value={reportType}
+                onChange={(e) => setReportType(e.target.value as "PDF" | "Excel")}
+                className={inputClass}
+                aria-label={t("classes.reports.fieldFormat")}
+              >
+                <option value="PDF">PDF</option>
+                <option value="Excel">Excel</option>
+              </select>
+            </label>
           </div>
-          <div className="mt-3 rounded-lg bg-[#f5f0e6] px-3 py-2 text-sm text-[#636e72]">
-            Ready to generate: class list, student count, and performance summary ({reportType}).
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-[#636e72]">
+              {reportClassId ? " " : t("classes.reports.helperSelectClass")}
+            </p>
+            <button
+              type="button"
+              disabled={!selectedReportRoom}
+              onClick={() => {
+                if (!selectedReportRoom) return;
+                window.alert(
+                  `Generating ${reportType} for ${selectedReportRoom.name}${reportTerm.trim() ? ` (${reportTerm.trim()})` : ""}.`,
+                );
+              }}
+              className="rounded-lg bg-[#6a9570] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {t("classes.reports.btnGenerate")}
+            </button>
+          </div>
+
+          <div className="mt-3 rounded-lg border border-[#ebe4d9] bg-[#f8f6f1] px-4 py-3 text-sm text-[#636e72]">
+            <p className="font-semibold text-[#2d3436]">{t("classes.reports.previewTitle")}</p>
+            {!selectedReportRoom ? (
+              <p className="mt-2">{t("classes.reports.previewMissingClass")}</p>
+            ) : (
+              <div className="mt-2 grid gap-1 sm:grid-cols-2">
+                <p>
+                  <span className="font-semibold text-[#2d3436]">{t("classes.reports.previewClass")}:</span>{" "}
+                  {selectedReportRoom.name}
+                </p>
+                <p>
+                  <span className="font-semibold text-[#2d3436]">{t("classes.reports.previewTerm")}:</span>{" "}
+                  {reportTerm.trim() || t("classes.reports.termAny")}
+                </p>
+                <p>
+                  <span className="font-semibold text-[#2d3436]">{t("classes.reports.previewFormat")}:</span> {reportType}
+                </p>
+                <p>
+                  <span className="font-semibold text-[#2d3436]">{t("classes.reports.previewStudents")}:</span>{" "}
+                  {reportStats.students}
+                </p>
+                <p>
+                  <span className="font-semibold text-[#2d3436]">{t("classes.reports.previewStreams")}:</span>{" "}
+                  {reportStats.streams}
+                </p>
+              </div>
+            )}
           </div>
         </section>
       ) : null}
 
-      <div />
+      <StudentDetailModal
+        studentId={rosterStudentModal?.studentId ?? null}
+        initialEditing
+        focusSectionField={rosterStudentModal?.focusSection ?? false}
+        streamOptions={
+          rosterStudentModal?.focusSection && rosterStreamNames.length > 0 ? rosterStreamNames : null
+        }
+        onClose={() => setRosterStudentModal(null)}
+        onChanged={() => void loadDbData()}
+      />
     </div>
   );
 }

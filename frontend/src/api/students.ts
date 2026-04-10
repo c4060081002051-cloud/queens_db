@@ -75,6 +75,11 @@ export type ClassCategoryOption = {
   classesCount?: number;
 };
 
+export type TeacherOption = {
+  id: number;
+  displayName: string;
+};
+
 export type StudentSortBy = "date" | "id" | "name" | "class";
 export type StudentSortDir = "asc" | "desc";
 
@@ -265,6 +270,19 @@ export async function fetchClassCategories(): Promise<ClassCategoryOption[]> {
     throw new Error(err?.error ?? "Request failed");
   }
   const data = await readJson<{ items: ClassCategoryOption[] }>(res);
+  return data.items;
+}
+
+export async function fetchTeachers(): Promise<TeacherOption[]> {
+  const res = await fetch(apiUrl("/api/me/teachers"), {
+    headers: { ...authHeaders() },
+  });
+  if (res.status === 401) throw new Error("Unauthorized");
+  if (!res.ok) {
+    const err = await readJson<{ error?: string }>(res).catch(() => null);
+    throw new Error(err?.error ?? "Request failed");
+  }
+  const data = await readJson<{ items: TeacherOption[] }>(res);
   return data.items;
 }
 

@@ -430,7 +430,14 @@ type PersistedViewState = {
   mainView: "dashboard" | "expenses" | "students" | "classes";
   studentSection: StudentNavSection;
   classesSection: ClassesSection;
+  /** Set when `classesSection === "class_students_roster"`; otherwise null. */
+  classStudentsRosterClassId: number | null;
 };
+
+function parsePositiveClassId(value: unknown): number | null {
+  const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isFinite(n) && n >= 1 ? Math.trunc(n) : null;
+}
 
 function readPersistedViewState(): PersistedViewState | null {
   try {
@@ -448,14 +455,19 @@ function readPersistedViewState(): PersistedViewState | null {
       parsed.studentSection === "import"
         ? parsed.studentSection
         : "all";
-    const classesSection: ClassesSection =
+    let classesSection: ClassesSection =
       parsed.classesSection === "sections_streams" ||
       parsed.classesSection === "class_students" ||
+      parsed.classesSection === "class_students_roster" ||
       parsed.classesSection === "class_teachers" ||
       parsed.classesSection === "class_categories" ||
       parsed.classesSection === "class_reports"
         ? parsed.classesSection
         : "all_classes";
+    const rosterClassId = parsePositiveClassId(parsed.classStudentsRosterClassId);
+    if (classesSection === "class_students_roster" && rosterClassId === null) {
+      classesSection = "class_students";
+    }
     const inboxScreen: InboxScreen =
       parsed.inboxScreen?.screen === "list" &&
       (parsed.inboxScreen.kind === "notifications" || parsed.inboxScreen.kind === "messages")
@@ -472,6 +484,8 @@ function readPersistedViewState(): PersistedViewState | null {
       mainView,
       studentSection,
       classesSection,
+      classStudentsRosterClassId:
+        classesSection === "class_students_roster" ? rosterClassId : null,
     };
   } catch {
     return null;
@@ -517,6 +531,9 @@ export function Dashboard({
   );
   const [classesSection, setClassesSection] = useState<ClassesSection>(
     initialView?.classesSection ?? "all_classes",
+  );
+  const [classStudentsRosterClassId, setClassStudentsRosterClassId] = useState<number | null>(
+    initialView?.classStudentsRosterClassId ?? null,
   );
 
   const refreshHeaderInbox = useCallback(async () => {
@@ -568,12 +585,23 @@ export function Dashboard({
         mainView,
         studentSection,
         classesSection,
+        classStudentsRosterClassId:
+          classesSection === "class_students_roster" ? classStudentsRosterClassId : null,
       };
       sessionStorage.setItem(DASHBOARD_VIEW_STATE_KEY, JSON.stringify(value));
     } catch {
       // Ignore storage failures (e.g. privacy mode/storage disabled).
     }
-  }, [settingsPanel, inboxScreen, mainView, studentSection, classesSection]);
+  }, [settingsPanel, inboxScreen, mainView, studentSection, classesSection, classStudentsRosterClassId]);
+
+  useEffect(() => {
+    if (classesSection !== "class_students_roster") return;
+    const id = classStudentsRosterClassId;
+    if (id == null || !Number.isFinite(id) || id < 1) {
+      setClassesSection("class_students");
+      setClassStudentsRosterClassId(null);
+    }
+  }, [classesSection, classStudentsRosterClassId]);
 
   const directoryCards = buildDirectoryStatCards(dash?.stats ?? null, dashLoading);
   const learners = dash?.learners ?? [];
@@ -645,6 +673,7 @@ export function Dashboard({
         setSettingsPanel(null);
         setInboxScreen({ screen: "home" });
         setMainView("classes");
+        setClassStudentsRosterClassId(null);
         setClassesSection(section);
       }}
       onAccountUpdated={onAccountUpdated}
@@ -683,7 +712,20 @@ export function Dashboard({
         ) : mainView === "students" ? (
           <StudentsSectionPage section={studentSection} classNameFilter={null} />
         ) : mainView === "classes" ? (
-          <ClassesSectionPage section={classesSection} />
+          <ClassesSectionPage
+            section={classesSection}
+            rosterClassId={
+              classesSection === "class_students_roster" ? classStudentsRosterClassId : null
+            }
+            onOpenClassRoster={(id) => {
+              setClassStudentsRosterClassId(id);
+              setClassesSection("class_students_roster");
+            }}
+            onCloseClassRoster={() => {
+              setClassStudentsRosterClassId(null);
+              setClassesSection("class_students");
+            }}
+          />
         ) : null}
         {settingsPanel === "modes" ||
         inboxScreen.screen !== "home" ||
