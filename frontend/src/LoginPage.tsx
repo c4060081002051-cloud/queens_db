@@ -271,9 +271,9 @@ export function LoginPage({
         <div className="neo-card mx-auto w-full max-w-md px-8 py-9 sm:px-10 sm:py-10">
           <div className="mb-3 flex justify-center">
             <img
-              src="/school-badge.png"
+              src="/school-icon.png"
               alt="School badge"
-              className="h-16 w-16 rounded-full border border-[#d9d0c4] object-cover shadow-sm"
+              className="h-16 w-16 rounded-full border border-[#d9d0c4] object-contain shadow-sm"
             />
           </div>
           <h1 className="text-center text-3xl font-bold text-[#2d3436]">

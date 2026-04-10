@@ -236,7 +236,7 @@ export function ClassesSectionPage({
   <circle cx='45' cy='45' r='34' fill='none' stroke='white' stroke-opacity='0.7' stroke-width='2'/>
   <text x='45' y='51' text-anchor='middle' font-family='Arial' font-size='18' fill='white' font-weight='700'>QS</text>
 </svg>`;
-    const badgeUrl = `${window.location.origin}/school-badge.png`;
+    const badgeUrl = `${window.location.origin}/school-badge-v2.png`;
     const teacherNames = [
       ...new Set(
         sections
