@@ -447,6 +447,11 @@ type PersistedViewState = {
   selectedClassName: string | null;
 };
 
+function parsePositiveClassId(value: unknown): number | null {
+  const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isFinite(n) && n >= 1 ? Math.trunc(n) : null;
+}
+
 function readPersistedViewState(): PersistedViewState | null {
   try {
     const raw = sessionStorage.getItem(DASHBOARD_VIEW_STATE_KEY);
@@ -588,6 +593,9 @@ export function Dashboard({
   );
   const [selectedClassName, setSelectedClassName] = useState<string | null>(
     initialView?.selectedClassName ?? null,
+  );
+  const [classStudentsRosterClassId, setClassStudentsRosterClassId] = useState<number | null>(
+    initialView?.classStudentsRosterClassId ?? null,
   );
 
   const refreshHeaderInbox = useCallback(async () => {
@@ -748,6 +756,7 @@ export function Dashboard({
         setSettingsPanel(null);
         setInboxScreen({ screen: "home" });
         setMainView("classes");
+        setClassStudentsRosterClassId(null);
         setClassesSection(section);
       }}
       onSelectFinanceSection={(section) => {

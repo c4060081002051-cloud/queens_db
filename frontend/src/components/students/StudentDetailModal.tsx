@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchCountries,
   fetchDistricts,
@@ -24,6 +24,13 @@ type StudentDetailModalProps = {
   studentId: number | null;
   /** When opening from the row “edit” action */
   initialEditing?: boolean;
+  /** Focus stream/section control after opening in edit mode (e.g. class roster “Move section”). */
+  focusSectionField?: boolean;
+  /**
+   * When provided (non-empty), section is chosen from this list (streams for the current class).
+   * Otherwise the free-text section field is used.
+   */
+  streamOptions?: string[] | null;
   onClose: () => void;
   onChanged: () => void | Promise<void>;
   onSaved?: (studentName: string) => void;
@@ -32,11 +39,14 @@ type StudentDetailModalProps = {
 export function StudentDetailModal({
   studentId,
   initialEditing = false,
+  focusSectionField = false,
+  streamOptions = null,
   onClose,
   onChanged,
   onSaved,
 }: StudentDetailModalProps) {
   const { t } = useI18n();
+  const sectionFieldRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
   const [row, setRow] = useState<StudentApiRow | null>(null);
   const [rooms, setRooms] = useState<ClassRoomOption[]>([]);
   const [loading, setLoading] = useState(false);
@@ -62,6 +72,8 @@ export function StudentDetailModal({
   const [previousSchool, setPreviousSchool] = useState("");
   const [emergencyContactName, setEmergencyContactName] = useState("");
   const [emergencyContactPhone, setEmergencyContactPhone] = useState("");
+  const [guardianName, setGuardianName] = useState("");
+  const [guardianPhone, setGuardianPhone] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
   const kindergartenRooms = rooms.filter((r) => /^KG[1-3]$/i.test(r.name.trim()));
@@ -122,6 +134,8 @@ export function StudentDetailModal({
         setPreviousSchool(s.previousSchool ?? "");
         setEmergencyContactName(s.emergencyContactName ?? "");
         setEmergencyContactPhone(s.emergencyContactPhone ?? "");
+        setGuardianName(s.guardianName ?? "");
+        setGuardianPhone(s.guardianPhone ?? "");
       })
       .catch((e) => {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
@@ -174,6 +188,24 @@ export function StudentDetailModal({
       cancelled = true;
     };
   }, [studentId, countryCode, row]);
+
+  const resolvedStreamOptions = useMemo(() => {
+    if (!streamOptions?.length) return null;
+    const cur = sectionName.trim();
+    if (cur && !streamOptions.includes(cur)) return [cur, ...streamOptions];
+    return streamOptions;
+  }, [streamOptions, sectionName]);
+
+  useEffect(() => {
+    if (!focusSectionField || !editing || loading || row == null) return;
+    const timer = window.setTimeout(() => {
+      const el = sectionFieldRef.current;
+      if (!el) return;
+      el.focus();
+      if (el instanceof HTMLInputElement) el.select();
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [focusSectionField, editing, loading, row?.id, studentId]);
 
   if (studentId == null) return null;
 
@@ -247,6 +279,8 @@ export function StudentDetailModal({
             : null,
         emergencyContactName: emergencyContactName.trim() || null,
         emergencyContactPhone: emergencyContactPhone.trim() || null,
+        guardianName: guardianName.trim() || null,
+        guardianPhone: guardianPhone.trim() || null,
       });
       const saved = await reload();
       setEditing(false);
@@ -684,58 +718,6 @@ export function StudentDetailModal({
                     />
                   </label>
                   <label className="block text-xs font-semibold text-[#636e72] sm:col-span-2">
-                    Emergency Contact Name *
-                    <input
-                      required
-                      className={`${fieldClass} mt-1`}
-                      value={emergencyContactName}
-                      onChange={(e) => setEmergencyContactName(e.target.value)}
-                    />
-                  </label>
-                  <label className="block text-xs font-semibold text-[#636e72] sm:col-span-2">
-                    Emergency Contact Phone *
-                    <input
-                      required
-                      className={`${fieldClass} mt-1`}
-                      value={emergencyContactPhone}
-                      onChange={(e) => setEmergencyContactPhone(e.target.value)}
-                    />
-                  </label>
-                  <label className="block text-xs font-semibold text-[#636e72]">
-                    {t("students.form.gender")}
-                    <select
-                      className={`${fieldClass} mt-1`}
-                      value={gender}
-                      onChange={(e) => setGender(e.target.value)}
-                    >
-                      <option value="">{t("students.form.genderUnset")}</option>
-                      <option value="Female">{t("students.form.genderFemale")}</option>
-                      <option value="Male">{t("students.form.genderMale")}</option>
-                      <option value="Other">{t("students.form.genderOther")}</option>
-                    </select>
-                  </label>
-                  <label className="block text-xs font-semibold text-[#636e72]">
-                    {t("learner.roll")}
-                    <input
-                      className={`${fieldClass} mt-1`}
-                      value={rollNumber}
-                      onChange={(e) => setRollNumber(e.target.value)}
-                      placeholder="—"
-                    />
-                  </label>
-                  <label className="block text-xs font-semibold text-[#636e72] sm:col-span-2">
-                    {t("students.form.section")}
-                    <input
-                      className={`${fieldClass} mt-1`}
-                      value={sectionName}
-                      onChange={(e) => setSectionName(e.target.value)}
-                      readOnly
-                    />
-                    <span className="mt-1 block text-[11px] text-[#636e72]">
-                      Section is auto-set from selected class.
-                    </span>
-                  </label>
-                  <label className="block text-xs font-semibold text-[#636e72] sm:col-span-2">
                     {t("students.form.classroom")}
                     <select
                       className={`${fieldClass} mt-1`}
@@ -777,6 +759,87 @@ export function StudentDetailModal({
                       ))}
                     </select>
                   </label>
+                  <label className="block text-xs font-semibold text-[#636e72]">
+                    {t("learner.roll")}
+                    <input
+                      className={`${fieldClass} mt-1`}
+                      value={rollNumber}
+                      onChange={(e) => setRollNumber(e.target.value)}
+                      placeholder="—"
+                    />
+                  </label>
+                  <label className="block text-xs font-semibold text-[#636e72] sm:col-span-2">
+                    Emergency Contact Name *
+                    <input
+                      required
+                      className={`${fieldClass} mt-1`}
+                      value={emergencyContactName}
+                      onChange={(e) => setEmergencyContactName(e.target.value)}
+                    />
+                  </label>
+                  <label className="block text-xs font-semibold text-[#636e72] sm:col-span-2">
+                    Emergency Contact Phone *
+                    <input
+                      required
+                      className={`${fieldClass} mt-1`}
+                      value={emergencyContactPhone}
+                      onChange={(e) => setEmergencyContactPhone(e.target.value)}
+                    />
+                  </label>
+                  <label className="block text-xs font-semibold text-[#636e72] sm:col-span-2">
+                    {t("students.form.guardianName")}
+                    <input
+                      className={`${fieldClass} mt-1`}
+                      value={guardianName}
+                      onChange={(e) => setGuardianName(e.target.value)}
+                    />
+                  </label>
+                  <label className="block text-xs font-semibold text-[#636e72] sm:col-span-2">
+                    {t("students.form.guardianPhone")}
+                    <input
+                      className={`${fieldClass} mt-1`}
+                      value={guardianPhone}
+                      onChange={(e) => setGuardianPhone(e.target.value)}
+                    />
+                  </label>
+                  <label className="block text-xs font-semibold text-[#636e72]">
+                    {t("students.form.gender")}
+                    <select
+                      className={`${fieldClass} mt-1`}
+                      value={gender}
+                      onChange={(e) => setGender(e.target.value)}
+                    >
+                      <option value="">{t("students.form.genderUnset")}</option>
+                      <option value="Female">{t("students.form.genderFemale")}</option>
+                      <option value="Male">{t("students.form.genderMale")}</option>
+                      <option value="Other">{t("students.form.genderOther")}</option>
+                    </select>
+                  </label>
+                  <label className="block text-xs font-semibold text-[#636e72] sm:col-span-2">
+                    {t("students.form.section")}
+                    {resolvedStreamOptions ? (
+                      <select
+                        ref={sectionFieldRef}
+                        className={`${fieldClass} mt-1`}
+                        value={sectionName}
+                        onChange={(e) => setSectionName(e.target.value)}
+                      >
+                        <option value="">{t("classes.classStudents.pickStream")}</option>
+                        {resolvedStreamOptions.map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        ref={sectionFieldRef}
+                        className={`${fieldClass} mt-1`}
+                        value={sectionName}
+                        onChange={(e) => setSectionName(e.target.value)}
+                      />
+                    )}
+                  </label>
                 </div>
               )}
 
@@ -811,7 +874,31 @@ export function StudentDetailModal({
                     <button
                       type="button"
                       disabled={saving}
-                      onClick={onClose}
+                      onClick={() => {
+                        setEditing(false);
+                        if (row) {
+                          setFirstName(row.firstName);
+                          setLastName(row.lastName);
+                          setDateOfBirth(row.dateOfBirth ?? "");
+                          setParentEmail(row.parentEmail ?? "");
+                          setGender(row.gender ?? "");
+                          setSectionName(row.sectionName ?? "");
+                          setClassRoomId(row.classRoomId != null ? String(row.classRoomId) : "");
+                          setNationality(row.nationality ?? "");
+                          setCountryCode(row.countryCode ?? "");
+                          setDistrict(row.district ?? "");
+                          setRegistrationType(
+                            row.registrationType === "continuing"
+                              ? "continuing"
+                              : "first",
+                          );
+                          setPreviousSchool(row.previousSchool ?? "");
+                          setEmergencyContactName(row.emergencyContactName ?? "");
+                          setEmergencyContactPhone(row.emergencyContactPhone ?? "");
+                          setGuardianName(row.guardianName ?? "");
+                          setGuardianPhone(row.guardianPhone ?? "");
+                        }
+                      }}
                       className="rounded-full bg-[#faf7f0] px-5 py-2 text-sm font-semibold text-[#636e72] ring-1 ring-[#ebe4d9] transition hover:bg-[#f0ebe3]"
                     >
                       {t("students.modal.cancelEdit")}
