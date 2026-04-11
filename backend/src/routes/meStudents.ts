@@ -11,7 +11,7 @@ import {
 } from "../data/geoReference.js";
 import { parseQueryToIsoDate } from "../formatting/localeDate.js";
 import { studentToApiRow } from "../formatting/studentRow.js";
-import { ClassCategory, ClassRoom, ClassSection, Student } from "../models/index.js";
+import { ClassCategory, ClassRoom, ClassSection, StaffMember, Student } from "../models/index.js";
 
 function studentUploadDir(): string {
   return path.join(process.cwd(), "uploads", "students");
@@ -571,6 +571,33 @@ export function createMeStudentsRouter() {
           name: s.name,
           classTeacherName: (s.get("class_teacher_name") as string | null) ?? null,
           academicYear: s.academicYear,
+        })),
+      });
+    } catch (err) {
+      console.error(err);
+      return res.status(503).json({ error: "Database unavailable" });
+    }
+  });
+
+  r.get("/teachers", async (_req, res) => {
+    try {
+      const rows = await StaffMember.findAll({
+        where: {
+          [Op.or]: [
+            { staffRole: "teaching" },
+            { staffRole: "teacher" },
+            { staffRole: "class_teacher" },
+            Sequelize.where(fn("LOWER", col("staff_role")), {
+              [Op.like]: "%teach%",
+            }),
+          ],
+        },
+        order: [["displayName", "ASC"]],
+      });
+      return res.json({
+        items: rows.map((x) => ({
+          id: x.id,
+          displayName: x.displayName,
         })),
       });
     } catch (err) {

@@ -704,9 +704,9 @@ export function AdminLayout({
           <div className="flex min-w-0 items-center gap-2">
             <span className="neo-logo flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg">
               <img
-                src="/school-badge.png"
+                src="/school-badge-v2.png"
                 alt="School badge"
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain"
               />
             </span>
             <div className="min-w-0">
@@ -1588,7 +1588,18 @@ export function AdminLayout({
           </div>
         </header>
 
-        <div className="min-h-0 flex-1">{children}</div>
+        <div className="relative min-h-0 flex-1 overflow-hidden">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 bg-center bg-no-repeat"
+            style={{
+              backgroundImage: "url('/school-badge-v2.png')",
+              backgroundSize: "min(52vw, 560px)",
+              opacity: 0.06,
+            }}
+          />
+          <div className="relative z-10 min-h-0 flex-1">{children}</div>
+        </div>
 
         <footer className="neo-footer shrink-0 border-t border-white/40 py-3.5 text-center text-xs font-medium text-[#636e72]">
           © {new Date().getFullYear()} {t("layout.copyright")} · {t("layout.footer")}
