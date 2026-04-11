@@ -25,6 +25,14 @@
     background-color: var(--cream);
     color: var(--ink);
   }
+
+  button:hover {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
 }
 
 @keyframes login-shake {

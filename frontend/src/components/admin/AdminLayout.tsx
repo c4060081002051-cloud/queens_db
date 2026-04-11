@@ -39,16 +39,29 @@ type AdminLayoutProps = {
   /** Open a settings section from the sidebar (e.g. `modes`). */
   onSelectSettingsPanel?: (panel: string) => void;
   /** Students hub: open full-page list or admissions form. */
-  onSelectStudentSection?: (section: "all" | "admissions" | "import") => void;
-  /** Open Classes & Sections submenu pages. */
-  onSelectClassSection?: (
+  onSelectStudentSection?: (section: "all" | "admissions" | "profiles" | "import" | "parents") => void;
+  /** Staff hub: open teaching or non-teaching pages. */
+  onSelectStaffSection?: (section: "teaching" | "nonTeaching") => void;
+  /** Teaching staff submenu: open a specific teaching section page. */
+  onSelectTeachingSection?: (
+    section: "all" | "kindergarten" | "lower_primary" | "upper_primary",
+  ) => void;
+  /** Non-teaching submenu: open a specific category page. */
+  onSelectNonTeachingCategory?: (
+    category: "all" | "administration" | "finance" | "library" | "health" | "operations",
+  ) => void;
+  /** Open class-specific list page. */
+  onSelectClassList?: (className: string) => void;
+  /** Finance hub: open finance landing or a specific section page. */
+  onSelectFinanceSection?: (
     section:
-      | "all_classes"
-      | "sections_streams"
-      | "class_students"
-      | "class_teachers"
-      | "class_categories"
-      | "class_reports",
+      | "overview"
+      | "daily_report"
+      | "debtors_report"
+      | "record_payment"
+      | "bursery"
+      | "staff_payment"
+      | "finance_summary",
   ) => void;
   /** Refresh `/api/auth/me` after password or 2FA changes. */
   onAccountUpdated?: () => void;
@@ -233,19 +246,6 @@ function IconPromotion({ className }: { className?: string }) {
   );
 }
 
-function IconStore({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="20" height="20" fill="none" viewBox="0 0 24 24" aria-hidden>
-      <path
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinejoin="round"
-        d="M3 10h18l-1.2 8.4a2 2 0 01-2 1.6H6.2a2 2 0 01-2-1.6L3 10zm0 0L2.5 6A1 1 0 013.5 5h17a1 1 0 011 .5L21 10M9 14h.01M15 14h.01"
-      />
-    </svg>
-  );
-}
-
 function IconSettings({ className }: { className?: string }) {
   return (
     <svg className={className} width="20" height="20" fill="none" viewBox="0 0 24 24" aria-hidden>
@@ -260,20 +260,6 @@ function IconSettings({ className }: { className?: string }) {
         strokeWidth="1.7"
         strokeLinejoin="round"
         d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"
-      />
-    </svg>
-  );
-}
-
-function IconMegaphone({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="20" height="20" fill="none" viewBox="0 0 24 24" aria-hidden>
-      <path
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M4 11v5l4 2v-9L4 11zm4-2l8-3v11l-8-3M16 8v8"
       />
     </svg>
   );
@@ -362,14 +348,16 @@ type NavLeaf = {
   badge?: string;
   settingsPanel?: string;
   inboxList?: "notifications" | "messages";
-  studentSection?: "all" | "admissions" | "import";
-  classSection?:
-    | "all_classes"
-    | "sections_streams"
-    | "class_students"
-    | "class_teachers"
-    | "class_categories"
-    | "class_reports";
+  studentSection?: "all" | "admissions" | "profiles" | "import" | "parents";
+  staffSection?: "teaching" | "nonTeaching";
+  financeSection?:
+    | "overview"
+    | "daily_report"
+    | "debtors_report"
+    | "record_payment"
+    | "bursery"
+    | "staff_payment"
+    | "finance_summary";
 };
 
 type NavGroup = { id: string; title: string; icon: NavIcon; items: NavLeaf[] };
@@ -385,6 +373,7 @@ function buildNavGroups(t: (key: string) => string): NavGroup[] {
         { icon: IconUsers, label: t("nav.students.all"), studentSection: "all" },
         { icon: IconClipboard, label: t("nav.students.admissions"), studentSection: "admissions" },
         { icon: IconClipboard, label: t("nav.students.import"), studentSection: "import" },
+        { icon: IconUsers, label: t("nav.students.parents"), studentSection: "parents" },
       ],
     },
     {
@@ -405,8 +394,8 @@ function buildNavGroups(t: (key: string) => string): NavGroup[] {
       title: t("nav.staff"),
       icon: IconUsers,
       items: [
-        { icon: IconGradCap, label: t("nav.staff.teaching") },
-        { icon: IconBuilding, label: t("nav.staff.nonTeaching") },
+        { icon: IconGradCap, label: t("nav.staff.teaching"), staffSection: "teaching" },
+        { icon: IconBuilding, label: t("nav.staff.nonTeaching"), staffSection: "nonTeaching" },
       ],
     },
     {
@@ -428,14 +417,12 @@ function buildNavGroups(t: (key: string) => string): NavGroup[] {
       title: t("nav.operations"),
       icon: IconWallet,
       items: [
-        { icon: IconBook, label: t("nav.operations.library") },
-        { icon: IconStore, label: t("nav.operations.store") },
-        { icon: IconWallet, label: t("nav.operations.accounts") },
-        { icon: IconBus, label: t("nav.operations.transport") },
-        { icon: IconBuilding, label: t("nav.operations.hostel") },
-        { icon: IconBuilding, label: t("nav.operations.hostelManager") },
-        { icon: IconMegaphone, label: t("nav.operations.enquiries") },
-        { icon: IconSettings, label: t("nav.operations.enquiryCategory") },
+        { icon: IconClipboard, label: t("nav.operations.library"), financeSection: "daily_report" },
+        { icon: IconBook, label: t("nav.operations.store"), financeSection: "debtors_report" },
+        { icon: IconWallet, label: t("nav.operations.accounts"), financeSection: "record_payment" },
+        { icon: IconBus, label: t("nav.operations.transport"), financeSection: "bursery" },
+        { icon: IconUsers, label: t("nav.operations.hostel"), financeSection: "staff_payment" },
+        { icon: IconChartBars, label: t("nav.operations.hostelManager"), financeSection: "finance_summary" },
       ],
     },
     {
@@ -529,7 +516,11 @@ export function AdminLayout({
   onDashboardHome,
   onSelectSettingsPanel,
   onSelectStudentSection,
-  onSelectClassSection,
+  onSelectStaffSection,
+  onSelectTeachingSection,
+  onSelectNonTeachingCategory,
+  onSelectClassList,
+  onSelectFinanceSection,
   onAccountUpdated,
 }: AdminLayoutProps) {
   const { t, locale, setLocale } = useI18n();
@@ -538,6 +529,13 @@ export function AdminLayout({
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => ({ ...defaultOpenGroups }));
+  const [classSectionOpen, setClassSectionOpen] = useState<{
+    kg: boolean;
+    lower: boolean;
+    upper: boolean;
+  }>({ kg: false, lower: false, upper: false });
+  const [teachingSectionOpen, setTeachingSectionOpen] = useState(false);
+  const [nonTeachingSectionOpen, setNonTeachingSectionOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [userMenuProfile, setUserMenuProfile] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
@@ -757,6 +755,7 @@ export function AdminLayout({
                     type="button"
                     onClick={() =>
                       setOpenGroups((prev) => {
+                        if (group.id === "operations") onSelectFinanceSection?.("overview");
                         if (prev[group.id]) {
                           return { ...prev, [group.id]: false };
                         }
@@ -789,6 +788,114 @@ export function AdminLayout({
                     />
                   </button>
                   {open ? (
+                    group.id === "classes" ? (
+                      <ul className="neo-nav-sub mb-1 ml-3 mt-1 space-y-0.5 pb-0.5 pl-2.5">
+                        <li>
+                          <button
+                            type="button"
+                            onClick={() => setClassSectionOpen((s) => ({ ...s, kg: !s.kg }))}
+                            className="neo-nav-item flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] font-semibold leading-snug text-[#636e72]"
+                          >
+                            <IconLayers className="h-3.5 w-3.5 shrink-0 text-[#5a8faf] opacity-90" />
+                            <span className="min-w-0 flex-1 truncate">Kindergarten (KG1-KG3)</span>
+                            <ChevronDown open={classSectionOpen.kg} className="h-3.5 w-3.5" />
+                          </button>
+                        </li>
+                        {classSectionOpen.kg ? (
+                          <>
+                            <li><button type="button" onClick={() => { onSelectClassList?.("KG1"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">KG1</button></li>
+                            <li><button type="button" onClick={() => { onSelectClassList?.("KG2"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">KG2</button></li>
+                            <li><button type="button" onClick={() => { onSelectClassList?.("KG3"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">KG3</button></li>
+                          </>
+                        ) : null}
+                        <li>
+                          <button
+                            type="button"
+                            onClick={() => setClassSectionOpen((s) => ({ ...s, lower: !s.lower }))}
+                            className="neo-nav-item flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] font-semibold leading-snug text-[#636e72]"
+                          >
+                            <IconLayers className="h-3.5 w-3.5 shrink-0 text-[#5a8faf] opacity-90" />
+                            <span className="min-w-0 flex-1 truncate">Lower Primary (P1-P3)</span>
+                            <ChevronDown open={classSectionOpen.lower} className="h-3.5 w-3.5" />
+                          </button>
+                        </li>
+                        {classSectionOpen.lower ? (
+                          <>
+                            <li><button type="button" onClick={() => { onSelectClassList?.("P1"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">P1</button></li>
+                            <li><button type="button" onClick={() => { onSelectClassList?.("P2"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">P2</button></li>
+                            <li><button type="button" onClick={() => { onSelectClassList?.("P3"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">P3</button></li>
+                          </>
+                        ) : null}
+                        <li>
+                          <button
+                            type="button"
+                            onClick={() => setClassSectionOpen((s) => ({ ...s, upper: !s.upper }))}
+                            className="neo-nav-item flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] font-semibold leading-snug text-[#636e72]"
+                          >
+                            <IconLayers className="h-3.5 w-3.5 shrink-0 text-[#5a8faf] opacity-90" />
+                            <span className="min-w-0 flex-1 truncate">Upper Primary (P4-P7)</span>
+                            <ChevronDown open={classSectionOpen.upper} className="h-3.5 w-3.5" />
+                          </button>
+                        </li>
+                        {classSectionOpen.upper ? (
+                          <>
+                            <li><button type="button" onClick={() => { onSelectClassList?.("P4"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">P4</button></li>
+                            <li><button type="button" onClick={() => { onSelectClassList?.("P5"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">P5</button></li>
+                            <li><button type="button" onClick={() => { onSelectClassList?.("P6"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">P6</button></li>
+                            <li><button type="button" onClick={() => { onSelectClassList?.("P7"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">P7</button></li>
+                          </>
+                        ) : null}
+                      </ul>
+                    ) : group.id === "staff" ? (
+                      <ul className="neo-nav-sub mb-1 ml-3 mt-1 space-y-0.5 pb-0.5 pl-2.5">
+                        <li>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onSelectStaffSection?.("teaching");
+                              setTeachingSectionOpen((v) => !v);
+                            }}
+                            className="neo-nav-item flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] font-semibold leading-snug text-[#636e72]"
+                          >
+                            <IconGradCap className="h-3.5 w-3.5 shrink-0 text-[#5a8faf] opacity-90" />
+                            <span className="min-w-0 flex-1 truncate">{t("nav.staff.teaching")}</span>
+                            <ChevronDown open={teachingSectionOpen} className="h-3.5 w-3.5" />
+                          </button>
+                        </li>
+                        {teachingSectionOpen ? (
+                          <>
+                            <li><button type="button" onClick={() => { onSelectTeachingSection?.("all"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">All Teachers</button></li>
+                            <li><button type="button" onClick={() => { onSelectTeachingSection?.("kindergarten"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">Kindergarten Teachers</button></li>
+                            <li><button type="button" onClick={() => { onSelectTeachingSection?.("lower_primary"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">Lower Primary Teachers</button></li>
+                            <li><button type="button" onClick={() => { onSelectTeachingSection?.("upper_primary"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">Upper Primary Teachers</button></li>
+                          </>
+                        ) : null}
+                        <li>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onSelectStaffSection?.("nonTeaching");
+                              setNonTeachingSectionOpen((v) => !v);
+                            }}
+                            className="neo-nav-item flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] font-semibold leading-snug text-[#636e72]"
+                          >
+                            <IconBuilding className="h-3.5 w-3.5 shrink-0 text-[#5a8faf] opacity-90" />
+                            <span className="min-w-0 flex-1 truncate">{t("nav.staff.nonTeaching")}</span>
+                            <ChevronDown open={nonTeachingSectionOpen} className="h-3.5 w-3.5" />
+                          </button>
+                        </li>
+                        {nonTeachingSectionOpen ? (
+                          <>
+                            <li><button type="button" onClick={() => { onSelectNonTeachingCategory?.("all"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">All Non-Teaching Staff</button></li>
+                            <li><button type="button" onClick={() => { onSelectNonTeachingCategory?.("administration"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">Administration Staff</button></li>
+                            <li><button type="button" onClick={() => { onSelectNonTeachingCategory?.("finance"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">Finance Staff</button></li>
+                            <li><button type="button" onClick={() => { onSelectNonTeachingCategory?.("library"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">Library Staff</button></li>
+                            <li><button type="button" onClick={() => { onSelectNonTeachingCategory?.("health"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">Health Staff</button></li>
+                            <li><button type="button" onClick={() => { onSelectNonTeachingCategory?.("operations"); setSidebarOpen(false); }} className="neo-nav-item ml-5 flex w-full rounded-md px-1.5 py-1 text-left text-[11px] text-[#636e72]">Operations Staff</button></li>
+                          </>
+                        ) : null}
+                      </ul>
+                    ) : (
                       <ul className="neo-nav-sub mb-1 ml-3 mt-1 space-y-0 pb-0.5 pl-2.5">
                         {group.items.map((item) => {
                           const ItemIcon = item.icon;
@@ -806,8 +913,11 @@ export function AdminLayout({
                                   if (item.studentSection) {
                                     onSelectStudentSection?.(item.studentSection);
                                   }
-                                  if (item.classSection) {
-                                    onSelectClassSection?.(item.classSection);
+                                  if (item.staffSection) {
+                                    onSelectStaffSection?.(item.staffSection);
+                                  }
+                                  if (item.financeSection) {
+                                    onSelectFinanceSection?.(item.financeSection);
                                   }
                                   setSidebarOpen(false);
                                 }}

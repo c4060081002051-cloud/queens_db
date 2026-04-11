@@ -46,6 +46,14 @@ function trimStr(v: unknown, max: number): string | null {
   return t.length > max ? t.slice(0, max) : t;
 }
 
+function toNameCase(v: string | null | undefined): string | null {
+  if (!v) return null;
+  return v
+    .toLowerCase()
+    .replace(/\b([a-z])/g, (m) => m.toUpperCase())
+    .trim();
+}
+
 function parseOptionalId(v: unknown): number | null | undefined {
   if (v === null) return null;
   if (v === undefined || v === "") return undefined;
@@ -146,11 +154,18 @@ async function createStudentRecord(fields: {
   guardianName: string | null;
   guardianPhone: string | null;
 }): Promise<Student> {
+  const firstName = toNameCase(fields.firstName) ?? fields.firstName;
+  const middleName = toNameCase(fields.middleName);
+  const lastName = toNameCase(fields.lastName) ?? fields.lastName;
+  const parentFullName = toNameCase(fields.parentFullName);
+  const emergencyContactName = toNameCase(fields.emergencyContactName);
+  const guardianName = toNameCase(fields.guardianName);
+
   const created = await Student.create({
     admissionNumber: tempAdmissionKey(),
-    firstName: fields.firstName,
-    middleName: fields.middleName,
-    lastName: fields.lastName,
+    firstName,
+    middleName,
+    lastName,
     dateOfBirth: fields.dateOfBirth,
     parentEmail: fields.parentEmail,
     classRoomId: fields.classRoomId,
@@ -169,7 +184,7 @@ async function createStudentRecord(fields: {
     previousGrades: fields.previousGrades,
     transferReason: fields.transferReason,
     parentAliveStatus: fields.parentAliveStatus,
-    parentFullName: fields.parentFullName,
+    parentFullName,
     parentPhone: fields.parentPhone,
     parentAddress: fields.parentAddress,
     religion: fields.religion,
@@ -177,9 +192,9 @@ async function createStudentRecord(fields: {
     boardingStatus: fields.boardingStatus,
     residenceAddress: fields.residenceAddress,
     medicalInfo: fields.medicalInfo,
-    emergencyContactName: fields.emergencyContactName,
+    emergencyContactName,
     emergencyContactPhone: fields.emergencyContactPhone,
-    guardianName: fields.guardianName,
+    guardianName,
     guardianPhone: fields.guardianPhone,
   });
   const year = new Date().getFullYear();
@@ -997,7 +1012,7 @@ export function createMeStudentsRouter() {
       const previousGrades = trimStr(body.previousGrades, 200);
       const transferReason = parseTransferReason(body.transferReason) ?? null;
       const parentAliveStatus = parseParentAliveStatus(body.parentAliveStatus);
-      const parentFullName = trimStr(body.parentFullName, 120);
+      const parentFullName = toNameCase(trimStr(body.parentFullName, 120));
       const parentPhone = trimStr(body.parentPhone, 32);
       const parentAddress = trimStr(body.parentAddress, 255);
       const religion = trimStr(body.religion, 80);
@@ -1005,9 +1020,9 @@ export function createMeStudentsRouter() {
       const residenceAddress = trimStr(body.residenceAddress, 255);
       const medicalInfo = trimStr(body.medicalInfo, 2000);
       const boardingStatus = parseBoardingStatus(body.boardingStatus);
-      const emergencyContactName = trimStr(body.emergencyContactName, 120);
+      const emergencyContactName = toNameCase(trimStr(body.emergencyContactName, 120));
       const emergencyContactPhone = trimStr(body.emergencyContactPhone, 32);
-      const guardianName = trimStr(body.guardianName, 120);
+      const guardianName = toNameCase(trimStr(body.guardianName, 120));
       const guardianPhone = trimStr(body.guardianPhone, 32);
       const countryCodeNorm = normalizeCountryCode(body.countryCode);
       const regType = parseRegistrationType(body.registrationType) ?? "first";
@@ -1109,9 +1124,9 @@ export function createMeStudentsRouter() {
       }
 
       const created = await createStudentRecord({
-        firstName,
-        middleName,
-        lastName,
+        firstName: toNameCase(firstName) ?? firstName,
+        middleName: toNameCase(middleName),
+        lastName: toNameCase(lastName) ?? lastName,
         dateOfBirth: dob,
         parentEmail: parentAliveStatus === "none" ? null : parentEmail,
         classRoomId,
@@ -1165,14 +1180,14 @@ export function createMeStudentsRouter() {
       if (!row) return res.status(404).json({ error: "Not found" });
 
       const body = req.body as Record<string, unknown>;
-      const firstName = trimStr(body.firstName, 100);
+      const firstName = toNameCase(trimStr(body.firstName, 100));
       const middleName =
         body.middleName === null
           ? null
           : body.middleName !== undefined
-            ? trimStr(body.middleName, 100)
+            ? toNameCase(trimStr(body.middleName, 100))
             : undefined;
-      const lastName = trimStr(body.lastName, 100);
+      const lastName = toNameCase(trimStr(body.lastName, 100));
       if (body.firstName !== undefined && !firstName) {
         return res.status(400).json({ error: "firstName cannot be empty" });
       }
@@ -1260,7 +1275,7 @@ export function createMeStudentsRouter() {
         body.parentFullName === null
           ? null
           : body.parentFullName !== undefined
-            ? trimStr(body.parentFullName, 120)
+            ? toNameCase(trimStr(body.parentFullName, 120))
             : undefined;
       const parentPhonePatch =
         body.parentPhone === null
@@ -1308,7 +1323,7 @@ export function createMeStudentsRouter() {
         body.emergencyContactName === null
           ? null
           : body.emergencyContactName !== undefined
-            ? trimStr(body.emergencyContactName, 120)
+            ? toNameCase(trimStr(body.emergencyContactName, 120))
             : undefined;
       const emergencyContactPhonePatch =
         body.emergencyContactPhone === null
@@ -1320,7 +1335,7 @@ export function createMeStudentsRouter() {
         body.guardianName === null
           ? null
           : body.guardianName !== undefined
-            ? trimStr(body.guardianName, 120)
+            ? toNameCase(trimStr(body.guardianName, 120))
             : undefined;
       const guardianPhonePatch =
         body.guardianPhone === null
