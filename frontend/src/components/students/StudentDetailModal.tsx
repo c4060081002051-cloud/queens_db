@@ -46,7 +46,8 @@ export function StudentDetailModal({
   onSaved,
 }: StudentDetailModalProps) {
   const { t } = useI18n();
-  const sectionFieldRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
+  const sectionSelectRef = useRef<HTMLSelectElement>(null);
+  const sectionInputRef = useRef<HTMLInputElement>(null);
   const [row, setRow] = useState<StudentApiRow | null>(null);
   const [rooms, setRooms] = useState<ClassRoomOption[]>([]);
   const [loading, setLoading] = useState(false);
@@ -68,8 +69,6 @@ export function StudentDetailModal({
   const [nationality, setNationality] = useState("");
   const [countryCode, setCountryCode] = useState("");
   const [district, setDistrict] = useState("");
-  const [registrationType, setRegistrationType] = useState<"first" | "continuing">("first");
-  const [previousSchool, setPreviousSchool] = useState("");
   const [emergencyContactName, setEmergencyContactName] = useState("");
   const [emergencyContactPhone, setEmergencyContactPhone] = useState("");
   const [guardianName, setGuardianName] = useState("");
@@ -128,10 +127,6 @@ export function StudentDetailModal({
         setNationality(s.nationality ?? "");
         setCountryCode(s.countryCode ?? "");
         setDistrict(s.district ?? "");
-        setRegistrationType(
-          s.registrationType === "continuing" ? "continuing" : "first",
-        );
-        setPreviousSchool(s.previousSchool ?? "");
         setEmergencyContactName(s.emergencyContactName ?? "");
         setEmergencyContactPhone(s.emergencyContactPhone ?? "");
         setGuardianName(s.guardianName ?? "");
@@ -199,7 +194,7 @@ export function StudentDetailModal({
   useEffect(() => {
     if (!focusSectionField || !editing || loading || row == null) return;
     const timer = window.setTimeout(() => {
-      const el = sectionFieldRef.current;
+      const el = sectionSelectRef.current ?? sectionInputRef.current;
       if (!el) return;
       el.focus();
       if (el instanceof HTMLInputElement) el.select();
@@ -237,8 +232,6 @@ export function StudentDetailModal({
     setNationality(s.nationality ?? "");
     setCountryCode(s.countryCode ?? "");
     setDistrict(s.district ?? "");
-    setRegistrationType(s.registrationType === "continuing" ? "continuing" : "first");
-    setPreviousSchool(s.previousSchool ?? "");
     await Promise.resolve(onChanged());
     return s;
   };
@@ -272,11 +265,6 @@ export function StudentDetailModal({
         nationality: nationality.trim() || null,
         countryCode: cc ? cc : null,
         district: dist || null,
-        registrationType,
-        previousSchool:
-          registrationType === "continuing"
-            ? previousSchool.trim() || null
-            : null,
         emergencyContactName: emergencyContactName.trim() || null,
         emergencyContactPhone: emergencyContactPhone.trim() || null,
         guardianName: guardianName.trim() || null,
@@ -594,33 +582,6 @@ export function StudentDetailModal({
                     />
                   </label>
                   <label className="block min-w-0 text-xs font-semibold text-[#636e72]">
-                    {t("students.form.registrationType")} *
-                    <select
-                      required
-                      className={`${fieldClass} mt-1`}
-                      value={registrationType}
-                      onChange={(e) => {
-                        const v = e.target.value as "first" | "continuing";
-                        setRegistrationType(v);
-                        if (v === "first") setPreviousSchool("");
-                      }}
-                    >
-                      <option value="first">{t("students.form.registrationFirst")}</option>
-                      <option value="continuing">{t("students.form.registrationContinuing")}</option>
-                    </select>
-                  </label>
-                  {registrationType === "continuing" ? (
-                    <label className="block min-w-0 text-xs font-semibold text-[#636e72] sm:col-span-2">
-                      {t("students.form.previousSchool")} *
-                      <input
-                        required
-                        className={`${fieldClass} mt-1`}
-                        value={previousSchool}
-                        onChange={(e) => setPreviousSchool(e.target.value)}
-                      />
-                    </label>
-                  ) : null}
-                  <label className="block min-w-0 text-xs font-semibold text-[#636e72]">
                     {t("students.form.nationality")}
                     <select
                       className={`${fieldClass} mt-1`}
@@ -819,7 +780,7 @@ export function StudentDetailModal({
                     {t("students.form.section")}
                     {resolvedStreamOptions ? (
                       <select
-                        ref={sectionFieldRef}
+                        ref={sectionSelectRef}
                         className={`${fieldClass} mt-1`}
                         value={sectionName}
                         onChange={(e) => setSectionName(e.target.value)}
@@ -833,7 +794,7 @@ export function StudentDetailModal({
                       </select>
                     ) : (
                       <input
-                        ref={sectionFieldRef}
+                        ref={sectionInputRef}
                         className={`${fieldClass} mt-1`}
                         value={sectionName}
                         onChange={(e) => setSectionName(e.target.value)}
@@ -887,12 +848,6 @@ export function StudentDetailModal({
                           setNationality(row.nationality ?? "");
                           setCountryCode(row.countryCode ?? "");
                           setDistrict(row.district ?? "");
-                          setRegistrationType(
-                            row.registrationType === "continuing"
-                              ? "continuing"
-                              : "first",
-                          );
-                          setPreviousSchool(row.previousSchool ?? "");
                           setEmergencyContactName(row.emergencyContactName ?? "");
                           setEmergencyContactPhone(row.emergencyContactPhone ?? "");
                           setGuardianName(row.guardianName ?? "");

@@ -434,7 +434,7 @@ export function setupDatabase(config: Config): Sequelize {
         field: "previous_report_card_filename",
       },
       previousGrades: {
-        type: DataTypes.STRING(200),
+        type: DataTypes.TEXT,
         allowNull: true,
         field: "previous_grades",
       },

@@ -433,6 +433,23 @@ export const messages: Record<Locale, Record<string, string>> = {
     "students.form.sectionPickClass": "Pick class first",
     "students.form.sectionLoading": "Loading sections…",
     "students.form.sectionNoData": "No sections found for class",
+    "students.form.sectionAutoHint":
+      "Set automatically from the class you choose (stream if configured, otherwise level).",
+    "students.form.classRequired": "Please select a class for this student.",
+    "students.form.cancelAdmission": "Cancel",
+    "students.form.admissionMarksSection": "Previous marks by subject (new admission)",
+    "students.form.admissionMarksHint":
+      "Enter each mark as a percentage out of 100% (0–100). Decimals are allowed (e.g. 87.5).",
+    "students.form.admissionMarksRequired": "Enter a mark for every listed subject.",
+    "students.form.admissionMarkPlaceholder": "0–100",
+    "students.form.admissionMarkInvalidNumber": "Each mark must be a valid number.",
+    "students.form.admissionMarkInvalidRange": "Each mark must be between 0 and 100 (percent).",
+    "students.form.previousGradesRequiredAdmission":
+      "Enter the previous grades / aggregates summary (required with subject marks).",
+    "students.form.previousSchoolFieldsRequired":
+      "Previous school, last class attended, and last term / year are required for new admissions.",
+    "students.form.previousGradesAdmissionHint":
+      "Short summary (e.g. overall aggregates or remarks). Subject percentages are entered below.",
     "students.form.classGroupKindergarten": "Kindergarten (KG1-KG3)",
     "students.form.classGroupLowerPrimary": "Lower Primary (P1-P3)",
     "students.form.classGroupUpperPrimary": "Upper Primary (P4-P7)",
@@ -462,7 +479,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     "students.form.transferReasonDiscipline": "Discipline",
     "students.form.transferReasonBetterEducation": "Better education",
     "students.form.previousReportCard": "Previous report card (PDF or image)",
-    "students.form.transferReportRequired": "Please upload the previous report card for transfer-in students.",
+    "students.form.transferReportRequired": "Please upload the previous report card (required for new admissions).",
     "students.form.transferReportUploadError": "Transfer report upload failed. Please try again.",
     "students.form.parentAliveStatus": "Parent status",
     "students.form.parentAliveUnset": "Select status",
@@ -493,7 +510,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     "students.form.saving": "Saving…",
     "students.form.success": "Student saved.",
     "students.form.error": "Could not save student.",
-    "students.form.classroomsError": "Could not load class list — you can still save without a class.",
+    "students.form.classroomsError": "Could not load class list. A class is required to save an admission.",
     "students.exportExcel": "Export Excel",
     "students.action.view": "View profile",
     "students.action.edit": "Edit",
@@ -514,7 +531,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     "students.photo.uploadError": "Photo upload failed.",
     "students.bulk.title": "Bulk import (CSV)",
     "students.bulk.hint":
-      "First row: headers. Columns: firstName, middleName, lastName, dateOfBirth (YYYY-MM-DD), parentAliveStatus (both|one|none), parentFullName, parentPhone, parentEmail, parentAddress, religion, specialNeeds, boardingStatus (boarding|day_half|day_full), residenceAddress, medicalInfo, guardianName, guardianPhone, emergencyContactName, emergencyContactPhone, gender, rollNumber, sectionName, classRoomId, nationality, countryCode, district, registrationType (first or continuing), previousSchool (for first/new students only).",
+      "First row: headers. Columns: firstName, middleName, lastName, dateOfBirth (YYYY-MM-DD), parentAliveStatus (both|one|none), parentFullName, parentPhone, parentEmail, parentAddress, religion, specialNeeds, boardingStatus (boarding|day_half|day_full), residenceAddress, medicalInfo, guardianName, guardianPhone, emergencyContactName, emergencyContactPhone, gender, rollNumber, sectionName, classRoomId, nationality, countryCode, district, registrationType (first=new admission, continuing=transfer-in). For first only: previousSchool, previousSchoolLocation, lastClassAttended, lastTermYear, previousGrades (JSON with marks[] and aggregates). Omit all previous-* columns for continuing.",
     "students.bulk.noFile": "Choose a CSV file first.",
     "students.bulk.submit": "Upload CSV",
     "students.bulk.uploading": "Importing…",
@@ -987,6 +1004,23 @@ export const messages: Record<Locale, Record<string, string>> = {
     "students.form.sectionPickClass": "Chagua darasa kwanza",
     "students.form.sectionLoading": "Inapakia sehemu…",
     "students.form.sectionNoData": "Hakuna sehemu za darasa hili",
+    "students.form.sectionAutoHint":
+      "Inawekwa kiotomatiki kutoka darasa ulilochagua (mkondo kama umewekwa, vinginevyo kiwango).",
+    "students.form.classRequired": "Tafadhali chagua darasa la mwanafunzi huyu.",
+    "students.form.cancelAdmission": "Ghairi",
+    "students.form.admissionMarksSection": "Alama za kila somo (kujiunga mpya)",
+    "students.form.admissionMarksHint":
+      "Weka kila alama kama asilimia kati ya 100% (0–100). Desimali zinaruhusiwa (mf. 87.5).",
+    "students.form.admissionMarksRequired": "Weka alama kwa kila somo kwenye orodha.",
+    "students.form.admissionMarkPlaceholder": "0–100",
+    "students.form.admissionMarkInvalidNumber": "Kila alama lazima iwe nambari halali.",
+    "students.form.admissionMarkInvalidRange": "Kila alama lazima iwe kati ya 0 na 100 (asilimia).",
+    "students.form.previousGradesRequiredAdmission":
+      "Weka muhtasari wa alama / makusanyo ya awali (pamoja na alama za kila somo).",
+    "students.form.previousSchoolFieldsRequired":
+      "Shule ya awali, darasa la mwisho, na muhula / mwaka wa mwisho vinahitajika kwa kujiunga mpya.",
+    "students.form.previousGradesAdmissionHint":
+      "Muhtasari mfupi (mf. makusanyo au maelezo). Asilimia za kila somo ziko hapa chini.",
     "students.form.classGroupKindergarten": "Chekechea (KG1-KG3)",
     "students.form.classGroupLowerPrimary": "Msingi wa Chini (P1-P3)",
     "students.form.classGroupUpperPrimary": "Msingi wa Juu (P4-P7)",
@@ -1016,7 +1050,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     "students.form.transferReasonDiscipline": "Nidhamu",
     "students.form.transferReasonBetterEducation": "Elimu bora zaidi",
     "students.form.previousReportCard": "Ripoti ya awali (PDF au picha)",
-    "students.form.transferReportRequired": "Tafadhali pakia ripoti ya awali kwa wanafunzi wa uhamisho.",
+    "students.form.transferReportRequired": "Tafadhali pakia ripoti ya awali (inahitajika kwa kujiunga mpya).",
     "students.form.transferReportUploadError": "Upakiaji wa ripoti ya uhamisho umeshindwa. Jaribu tena.",
     "students.form.parentAliveStatus": "Hali ya wazazi",
     "students.form.parentAliveUnset": "Chagua hali",
@@ -1049,7 +1083,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     "students.form.success": "Mwanafunzi amehifadhiwa.",
     "students.form.error": "Imeshindwa kuhifadhi mwanafunzi.",
     "students.form.classroomsError":
-      "Orodha ya madarasa haikupakiwa — bado unaweza kuhifadhi bila darasa.",
+      "Orodha ya madarasa haikupakiwa. Darasa linahitajika kuhifadhi kujiunga.",
     "students.exportExcel": "Hamisha Excel",
     "students.action.view": "Angalia wasifu",
     "students.action.edit": "Hariri",
@@ -1070,7 +1104,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     "students.photo.uploadError": "Upakiaji wa picha umeshindwa.",
     "students.bulk.title": "Ingiza wingi (CSV)",
     "students.bulk.hint":
-      "Safu ya kwanza: vichwa. Safu: firstName, middleName, lastName, dateOfBirth (YYYY-MM-DD), parentAliveStatus (both|one|none), parentFullName, parentPhone, parentEmail, parentAddress, religion, specialNeeds, boardingStatus (boarding|day_half|day_full), residenceAddress, medicalInfo, guardianName, guardianPhone, emergencyContactName, emergencyContactPhone, gender, rollNumber, sectionName, classRoomId, nationality, countryCode, district, registrationType (first au continuing), previousSchool (kwa first/new pekee).",
+      "Safu ya kwanza: vichwa. Safu: firstName, middleName, lastName, dateOfBirth (YYYY-MM-DD), parentAliveStatus (both|one|none), parentFullName, parentPhone, parentEmail, parentAddress, religion, specialNeeds, boardingStatus (boarding|day_half|day_full), residenceAddress, medicalInfo, guardianName, guardianPhone, emergencyContactName, emergencyContactPhone, gender, rollNumber, sectionName, classRoomId, nationality, countryCode, district, registrationType (first=kujiunga mpya, continuing=uhamisho). Kwa first pekee: previousSchool, previousSchoolLocation, lastClassAttended, lastTermYear, previousGrades (JSON yenye marks[] na aggregates). Usijumuishe safu za previous-* kwa continuing.",
     "students.bulk.noFile": "Chagua faili la CSV kwanza.",
     "students.bulk.submit": "Pakia CSV",
     "students.bulk.uploading": "Inaingiza…",

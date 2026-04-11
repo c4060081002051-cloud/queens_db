@@ -46,6 +46,68 @@ function trimStr(v: unknown, max: number): string | null {
   return t.length > max ? t.slice(0, max) : t;
 }
 
+const PREVIOUS_GRADES_MAX_LEN = 8000;
+
+function parsePercentageOutOf100(raw: string): number | null {
+  const t = raw.replace(/%$/u, "").replace(/,/g, ".").trim();
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** JSON shape: { "v": 1, "marks": [...], "aggregates": "..." } — marks are 0–100%. */
+function validateNewAdmissionMarksJson(
+  raw: string | null,
+): { ok: true; stored: string } | { ok: false; error: string } {
+  if (!raw) return { ok: false, error: "Subject marks are required for new admissions" };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw) as unknown;
+  } catch {
+    return { ok: false, error: "Subject marks must be valid JSON" };
+  }
+  if (!parsed || typeof parsed !== "object") {
+    return { ok: false, error: "Invalid subject marks structure" };
+  }
+  const marks = (parsed as { marks?: unknown }).marks;
+  if (!Array.isArray(marks) || marks.length === 0) {
+    return { ok: false, error: "At least one subject mark is required" };
+  }
+  const normalizedMarks: { subject: string; mark: string }[] = [];
+  for (const m of marks) {
+    if (!m || typeof m !== "object") {
+      return { ok: false, error: "Invalid subject mark entry" };
+    }
+    const subject = trimStr((m as { subject?: unknown }).subject, 120);
+    const mark = trimStr((m as { mark?: unknown }).mark, 40);
+    if (!subject || !mark) {
+      return { ok: false, error: "Each subject must include a mark" };
+    }
+    const pct = parsePercentageOutOf100(mark);
+    if (pct === null) {
+      return { ok: false, error: "Each mark must be a valid number (percentage out of 100)" };
+    }
+    if (pct < 0 || pct > 100) {
+      return { ok: false, error: "Each mark must be between 0 and 100 (percent)" };
+    }
+    const r = Math.round(pct * 100) / 100;
+    normalizedMarks.push({ subject, mark: String(r) });
+  }
+  const aggregates = trimStr((parsed as { aggregates?: unknown }).aggregates, 500);
+  if (!aggregates) {
+    return {
+      ok: false,
+      error: "Previous grades / aggregates summary is required for new admissions",
+    };
+  }
+  const stored = JSON.stringify({
+    v: 1,
+    marks: normalizedMarks,
+    aggregates,
+  });
+  return { ok: true, stored };
+}
+
 function toNameCase(v: string | null | undefined): string | null {
   if (!v) return null;
   return v
@@ -796,14 +858,41 @@ export function createMeStudentsRouter() {
           continue;
         }
         if (regType === "continuing") {
+          if (
+            previousSchool ||
+            previousSchoolLocation ||
+            lastClassAttended ||
+            lastTermYear ||
+            previousGrades
+          ) {
+            errors.push({
+              line: lineNo,
+              error:
+                "Previous school / grades columns apply only to new admissions (use registrationType first)",
+            });
+            continue;
+          }
+        }
+        let csvPreviousGradesStored: string | null = null;
+        if (regType === "first") {
           if (!previousSchool || !lastClassAttended || !lastTermYear || !previousGrades) {
             errors.push({
               line: lineNo,
               error:
-                "previousSchool, lastClassAttended, lastTermYear, and previousGrades are required for transfer students",
+                "previousSchool, lastClassAttended, lastTermYear, and previousGrades (JSON with marks and aggregates) are required for new admissions",
             });
             continue;
           }
+          const pgRaw =
+            previousGrades.length > PREVIOUS_GRADES_MAX_LEN
+              ? previousGrades.slice(0, PREVIOUS_GRADES_MAX_LEN)
+              : previousGrades;
+          const v = validateNewAdmissionMarksJson(pgRaw);
+          if (!v.ok) {
+            errors.push({ line: lineNo, error: v.error });
+            continue;
+          }
+          csvPreviousGradesStored = v.stored;
         }
         try {
           await createStudentRecord({
@@ -821,14 +910,17 @@ export function createMeStudentsRouter() {
             district: district ? district.slice(0, 120) : null,
             registrationType: regType,
             previousSchool:
-              regType === "continuing" && previousSchool ? previousSchool.slice(0, 200) : null,
-            previousSchoolLocation: previousSchoolLocation
-              ? previousSchoolLocation.slice(0, 200)
-              : null,
-            lastClassAttended: lastClassAttended ? lastClassAttended.slice(0, 120) : null,
-            lastTermYear: lastTermYear ? lastTermYear.slice(0, 40) : null,
+              regType === "first" && previousSchool ? previousSchool.slice(0, 200) : null,
+            previousSchoolLocation:
+              regType === "first" && previousSchoolLocation
+                ? previousSchoolLocation.slice(0, 200)
+                : null,
+            lastClassAttended:
+              regType === "first" && lastClassAttended ? lastClassAttended.slice(0, 120) : null,
+            lastTermYear:
+              regType === "first" && lastTermYear ? lastTermYear.slice(0, 40) : null,
             previousReportCardFilename: null,
-            previousGrades: previousGrades ? previousGrades.slice(0, 200) : null,
+            previousGrades: csvPreviousGradesStored,
             transferReason,
             parentAliveStatus,
             parentFullName: parentFullName ? parentFullName.slice(0, 120) : null,
@@ -1009,7 +1101,7 @@ export function createMeStudentsRouter() {
       const previousSchoolLocation = trimStr(body.previousSchoolLocation, 200);
       const lastClassAttended = trimStr(body.lastClassAttended, 120);
       const lastTermYear = trimStr(body.lastTermYear, 40);
-      const previousGrades = trimStr(body.previousGrades, 200);
+      const previousGradesRaw = trimStr(body.previousGrades, PREVIOUS_GRADES_MAX_LEN);
       const transferReason = parseTransferReason(body.transferReason) ?? null;
       const parentAliveStatus = parseParentAliveStatus(body.parentAliveStatus);
       const parentFullName = toNameCase(trimStr(body.parentFullName, 120));
@@ -1064,18 +1156,31 @@ export function createMeStudentsRouter() {
       if (!boardingStatus) {
         return res.status(400).json({ error: "boardingStatus is required" });
       }
-      if (regType === "first" && previousSchool) {
-        return res.status(400).json({
-          error: "previousSchool is only allowed for transfer students",
-        });
-      }
       if (regType === "continuing") {
-        if (!previousSchool || !lastClassAttended || !lastTermYear || !previousGrades) {
+        if (
+          previousSchool ||
+          previousSchoolLocation ||
+          lastClassAttended ||
+          lastTermYear ||
+          previousGradesRaw
+        ) {
           return res.status(400).json({
             error:
-              "previousSchool, lastClassAttended, lastTermYear, and previousGrades are required for transfer students",
+              "Previous school, report card, and grade fields apply only to new admissions — omit them for transfer-in",
           });
         }
+      }
+      let previousGradesStored: string | null = null;
+      if (regType === "first") {
+        if (!previousSchool || !lastClassAttended || !lastTermYear) {
+          return res.status(400).json({
+            error:
+              "previousSchool, lastClassAttended, and lastTermYear are required for new admissions",
+          });
+        }
+        const v = validateNewAdmissionMarksJson(previousGradesRaw);
+        if (!v.ok) return res.status(400).json({ error: v.error });
+        previousGradesStored = v.stored;
       }
       if (body.parentAliveStatus !== undefined && !parentAliveStatus) {
         return res.status(400).json({ error: "Invalid parentAliveStatus" });
@@ -1137,13 +1242,13 @@ export function createMeStudentsRouter() {
         countryCode: countryCodeNorm,
         district,
         registrationType: regType,
-        previousSchool: regType === "continuing" ? previousSchool : null,
-        previousSchoolLocation,
-        lastClassAttended,
-        lastTermYear,
+        previousSchool: regType === "first" ? previousSchool : null,
+        previousSchoolLocation: regType === "first" ? previousSchoolLocation : null,
+        lastClassAttended: regType === "first" ? lastClassAttended : null,
+        lastTermYear: regType === "first" ? lastTermYear : null,
         previousReportCardFilename: null,
-        previousGrades,
-        transferReason,
+        previousGrades: previousGradesStored,
+        transferReason: regType === "continuing" ? transferReason : null,
         parentAliveStatus,
         parentFullName: parentAliveStatus === "none" ? null : parentFullName,
         parentPhone: parentAliveStatus === "none" ? null : parentPhone,
@@ -1257,7 +1362,7 @@ export function createMeStudentsRouter() {
         body.previousGrades === null
           ? null
           : body.previousGrades !== undefined
-            ? trimStr(body.previousGrades, 200)
+            ? trimStr(body.previousGrades, PREVIOUS_GRADES_MAX_LEN)
             : undefined;
       const transferReasonPatch =
         body.transferReason === null
@@ -1381,23 +1486,35 @@ export function createMeStudentsRouter() {
       const nextDistrict =
         district !== undefined ? district : row.district ?? null;
       const nextPrev =
-        regPatch === "first"
+        nextReg === "continuing"
           ? null
           : previousSchoolPatch !== undefined
             ? previousSchoolPatch
             : row.previousSchool ?? null;
+      const nextPrevLocation =
+        nextReg === "continuing"
+          ? null
+          : previousSchoolLocationPatch !== undefined
+            ? previousSchoolLocationPatch
+            : ((row.get("previous_school_location") as string | null) ?? null);
       const nextLastClass =
-        lastClassAttendedPatch !== undefined
-          ? lastClassAttendedPatch
-          : ((row.get("last_class_attended") as string | null) ?? null);
+        nextReg === "continuing"
+          ? null
+          : lastClassAttendedPatch !== undefined
+            ? lastClassAttendedPatch
+            : ((row.get("last_class_attended") as string | null) ?? null);
       const nextLastTermYear =
-        lastTermYearPatch !== undefined
-          ? lastTermYearPatch
-          : ((row.get("last_term_year") as string | null) ?? null);
+        nextReg === "continuing"
+          ? null
+          : lastTermYearPatch !== undefined
+            ? lastTermYearPatch
+            : ((row.get("last_term_year") as string | null) ?? null);
       const nextPrevGrades =
-        previousGradesPatch !== undefined
-          ? previousGradesPatch
-          : ((row.get("previous_grades") as string | null) ?? null);
+        nextReg === "continuing"
+          ? null
+          : previousGradesPatch !== undefined
+            ? previousGradesPatch
+            : ((row.get("previous_grades") as string | null) ?? null);
       const nextParentStatus =
         parentAliveStatusPatch !== undefined
           ? parentAliveStatusPatch
@@ -1438,17 +1555,6 @@ export function createMeStudentsRouter() {
       ) {
         return res.status(400).json({ error: "District does not match selected country" });
       }
-      if (nextReg === "first" && nextPrev) {
-        return res.status(400).json({
-          error: "previousSchool is only allowed for transfer students",
-        });
-      }
-      if (nextReg === "continuing" && !(nextPrev && nextLastClass && nextLastTermYear && nextPrevGrades)) {
-        return res.status(400).json({
-          error:
-            "previousSchool, lastClassAttended, lastTermYear, and previousGrades are required for transfer students",
-        });
-      }
       if (body.parentAliveStatus !== undefined && parentAliveStatusPatch === undefined) {
         return res.status(400).json({ error: "Invalid parentAliveStatus" });
       }
@@ -1488,15 +1594,21 @@ export function createMeStudentsRouter() {
         ...(countryPatch !== undefined ? { countryCode: countryPatch } : {}),
         ...(district !== undefined ? { district } : {}),
         ...(regPatch !== undefined ? { registrationType: regPatch } : {}),
-        ...(regPatch === "first" || previousSchoolPatch !== undefined
+        ...(regPatch !== undefined || previousSchoolPatch !== undefined
           ? { previousSchool: nextPrev }
           : {}),
-        ...(previousSchoolLocationPatch !== undefined
-          ? { previousSchoolLocation: previousSchoolLocationPatch }
+        ...(regPatch !== undefined || previousSchoolLocationPatch !== undefined
+          ? { previousSchoolLocation: nextPrevLocation }
           : {}),
-        ...(lastClassAttendedPatch !== undefined ? { lastClassAttended: lastClassAttendedPatch } : {}),
-        ...(lastTermYearPatch !== undefined ? { lastTermYear: lastTermYearPatch } : {}),
-        ...(previousGradesPatch !== undefined ? { previousGrades: previousGradesPatch } : {}),
+        ...(regPatch !== undefined || lastClassAttendedPatch !== undefined
+          ? { lastClassAttended: nextLastClass }
+          : {}),
+        ...(regPatch !== undefined || lastTermYearPatch !== undefined
+          ? { lastTermYear: nextLastTermYear }
+          : {}),
+        ...(regPatch !== undefined || previousGradesPatch !== undefined
+          ? { previousGrades: nextPrevGrades }
+          : {}),
         ...(transferReasonPatch !== undefined ? { transferReason: transferReasonPatch } : {}),
         ...(parentAliveStatusPatch !== undefined
           ? { parentAliveStatus: parentAliveStatusPatch }
@@ -1579,9 +1691,11 @@ export function createMeStudentsRouter() {
         }
         const currentReg =
           row.registrationType ?? (row.get("registration_type") as string | undefined) ?? "first";
-        if (currentReg !== "continuing") {
+        if (currentReg !== "first") {
           await fs.unlink(req.file.path).catch(() => {});
-          return res.status(400).json({ error: "Transfer report is only allowed for transfer students" });
+          return res.status(400).json({
+            error: "Previous report card upload is only for new admissions",
+          });
         }
         const prev =
           (row.get("previous_report_card_filename") as string | null | undefined) ??

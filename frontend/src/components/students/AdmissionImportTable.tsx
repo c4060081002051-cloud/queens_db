@@ -31,6 +31,10 @@ type Row = {
   religion: string;
   registrationType: "first" | "continuing";
   previousSchool: string;
+  previousSchoolLocation: string;
+  lastClassAttended: string;
+  lastTermYear: string;
+  previousGrades: string;
   parentAliveStatus: "both" | "one" | "none" | "";
   parentFullName: string;
   parentPhone: string;
@@ -60,7 +64,11 @@ const headers: Array<{ key: keyof Row; label: string }> = [
   { key: "district", label: "District" },
   { key: "religion", label: "Religion" },
   { key: "registrationType", label: "Registration type" },
-  { key: "previousSchool", label: "Previous school" },
+  { key: "previousSchool", label: "Previous school (first only)" },
+  { key: "previousSchoolLocation", label: "Prev. school location" },
+  { key: "lastClassAttended", label: "Last class attended" },
+  { key: "lastTermYear", label: "Last term/year" },
+  { key: "previousGrades", label: "Previous grades JSON" },
   { key: "parentAliveStatus", label: "Parent status" },
   { key: "parentFullName", label: "Parent full name" },
   { key: "parentPhone", label: "Parent phone" },
@@ -105,6 +113,10 @@ function emptyRow(): Row {
     religion: "",
     registrationType: "first",
     previousSchool: "",
+    previousSchoolLocation: "",
+    lastClassAttended: "",
+    lastTermYear: "",
+    previousGrades: "",
     parentAliveStatus: "",
     parentFullName: "",
     parentPhone: "",
@@ -234,8 +246,31 @@ export function AdmissionImportTable({ onDone }: AdmissionImportTableProps) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(r.dateOfBirth.trim())) {
       return "dateOfBirth must be YYYY-MM-DD";
     }
-    if (r.registrationType !== "first" && r.previousSchool.trim()) {
-      return "previousSchool is only allowed for first/new students";
+    if (r.registrationType === "continuing") {
+      if (
+        r.previousSchool.trim() ||
+        r.previousSchoolLocation.trim() ||
+        r.lastClassAttended.trim() ||
+        r.lastTermYear.trim() ||
+        r.previousGrades.trim()
+      ) {
+        return "Omit previous school and grades columns for transfer-in (continuing)";
+      }
+    }
+    if (r.registrationType === "first") {
+      if (
+        !r.previousSchool.trim() ||
+        !r.lastClassAttended.trim() ||
+        !r.lastTermYear.trim() ||
+        !r.previousGrades.trim()
+      ) {
+        return "New admissions require previousSchool, lastClassAttended, lastTermYear, previousGrades (JSON)";
+      }
+      try {
+        JSON.parse(r.previousGrades.trim());
+      } catch {
+        return "previousGrades must be valid JSON (marks + aggregates)";
+      }
     }
     if (
       (r.parentAliveStatus === "both" || r.parentAliveStatus === "one") &&
@@ -296,7 +331,17 @@ export function AdmissionImportTable({ onDone }: AdmissionImportTableProps) {
           district: r.district.trim() || undefined,
           religion: r.religion.trim() || undefined,
           registrationType: r.registrationType,
-          previousSchool: r.previousSchool.trim() || undefined,
+          previousSchool:
+            r.registrationType === "first" ? r.previousSchool.trim() : undefined,
+          previousSchoolLocation:
+            r.registrationType === "first" && r.previousSchoolLocation.trim()
+              ? r.previousSchoolLocation.trim()
+              : undefined,
+          lastClassAttended:
+            r.registrationType === "first" ? r.lastClassAttended.trim() : undefined,
+          lastTermYear: r.registrationType === "first" ? r.lastTermYear.trim() : undefined,
+          previousGrades:
+            r.registrationType === "first" ? r.previousGrades.trim() : undefined,
           parentAliveStatus: (r.parentAliveStatus || undefined) as
             | "both"
             | "one"

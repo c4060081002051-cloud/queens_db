@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   fetchCountries,
   fetchDistricts,
@@ -6,17 +6,22 @@ import {
   type CountryOption,
 } from "../../api/geo";
 import {
-  fetchClassCategories,
   fetchClassSections,
   createStudent,
   fetchClassrooms,
   uploadStudentPhoto,
   uploadStudentTransferReport,
-  type ClassCategoryOption,
   type ClassRoomOption,
   type ClassSectionOption,
 } from "../../api/students";
 import { useI18n } from "../../i18n/I18nProvider";
+import {
+  buildAdmissionMarksJson,
+  formatOutOf100ForStorage,
+  isValidOutOf100Mark,
+  parseOutOf100Mark,
+  subjectsForClassRoom,
+} from "./admissionSubjects";
 
 type NewAdmissionFormProps = {
   onCreated: () => void;
@@ -28,7 +33,6 @@ const fieldClass =
 export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
   const { t } = useI18n();
   const [rooms, setRooms] = useState<ClassRoomOption[]>([]);
-  const [classCategories, setClassCategories] = useState<ClassCategoryOption[]>([]);
   const [loadRoomsError, setLoadRoomsError] = useState<string | null>(null);
   const [nationalities, setNationalities] = useState<string[]>([]);
   const [countries, setCountries] = useState<CountryOption[]>([]);
@@ -44,7 +48,6 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
   const [parentEmail, setParentEmail] = useState("");
   const [gender, setGender] = useState("");
   const [sectionName, setSectionName] = useState("");
-  const [classCategoryId, setClassCategoryId] = useState("");
   const [classRoomId, setClassRoomId] = useState("");
   const [nationality, setNationality] = useState("");
   const [countryCode, setCountryCode] = useState("");
@@ -79,11 +82,38 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
-  const filteredRooms = rooms.filter((r) =>
-    classCategoryId
-      ? String(r.categoryId ?? "") === classCategoryId && r.isActive !== false
-      : r.isActive !== false,
+  const [admissionMarks, setAdmissionMarks] = useState<Record<string, string>>({});
+  const activeRooms = useMemo(
+    () => rooms.filter((r) => r.isActive !== false),
+    [rooms],
   );
+  const kindergartenRooms = useMemo(
+    () => activeRooms.filter((r) => /^KG[1-3]$/i.test(r.name.trim())),
+    [activeRooms],
+  );
+  const lowerPrimaryRooms = useMemo(
+    () => activeRooms.filter((r) => /^P[1-3]$/i.test(r.name.trim())),
+    [activeRooms],
+  );
+  const upperPrimaryRooms = useMemo(
+    () => activeRooms.filter((r) => /^P[4-7]$/i.test(r.name.trim())),
+    [activeRooms],
+  );
+  const otherRooms = useMemo(
+    () =>
+      activeRooms.filter(
+        (r) =>
+          !/^KG[1-3]$/i.test(r.name.trim()) &&
+          !/^P[1-3]$/i.test(r.name.trim()) &&
+          !/^P[4-7]$/i.test(r.name.trim()),
+      ),
+    [activeRooms],
+  );
+  const selectedRoom = useMemo(() => {
+    const id = Number.parseInt(classRoomId, 10);
+    if (!Number.isFinite(id) || id <= 0) return undefined;
+    return rooms.find((r) => r.id === id);
+  }, [classRoomId, rooms]);
   const religions = [
     "Christian",
     "Muslim",
@@ -106,10 +136,9 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
 
   useEffect(() => {
     let cancelled = false;
-    void Promise.all([fetchClassrooms(), fetchClassCategories()])
-      .then(([list, categories]) => {
+    void fetchClassrooms()
+      .then((list) => {
         if (!cancelled) setRooms(list);
-        if (!cancelled) setClassCategories(categories);
       })
       .catch(() => {
         if (!cancelled) setLoadRoomsError(t("students.form.classroomsError"));
@@ -179,8 +208,17 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
     }
     const room = rooms.find((r) => r.id === id);
     if (!room) return;
-    setSectionName(inferSectionFromClassroomName(room.name));
-  }, [classRoomId, rooms]);
+    const inferred = inferSectionFromClassroomName(room.name);
+    if (sectionsLoading) {
+      setSectionName(inferred);
+      return;
+    }
+    if (sections.length > 0) {
+      setSectionName(sections[0].name);
+    } else {
+      setSectionName(inferred);
+    }
+  }, [classRoomId, rooms, sections, sectionsLoading]);
 
   useEffect(() => {
     const id = Number.parseInt(classRoomId, 10);
@@ -189,6 +227,7 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
       return;
     }
     let cancelled = false;
+    setSections([]);
     setSectionsLoading(true);
     void fetchClassSections(id)
       .then((list) => {
@@ -205,6 +244,23 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
     };
   }, [classRoomId]);
 
+  useEffect(() => {
+    if (registrationType !== "first") {
+      setAdmissionMarks({});
+      return;
+    }
+    const id = Number.parseInt(classRoomId, 10);
+    const room = rooms.find((r) => r.id === id);
+    const subs = room ? subjectsForClassRoom(room.name) : [];
+    setAdmissionMarks((prev) => {
+      const next: Record<string, string> = {};
+      for (const s of subs) {
+        next[s] = prev[s] ?? "";
+      }
+      return next;
+    });
+  }, [classRoomId, rooms, registrationType]);
+
   const resetForm = () => {
     setFirstName("");
     setMiddleName("");
@@ -213,7 +269,6 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
     setParentEmail("");
     setGender("");
     setSectionName("");
-    setClassCategoryId("");
     setClassRoomId("");
     setSections([]);
     setNationality("");
@@ -243,6 +298,7 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
     setGuardianName("");
     setGuardianPhone("");
     setPhotoFile(null);
+    setAdmissionMarks({});
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -258,6 +314,65 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
       }
       const cr =
         classRoomId.trim() === "" ? undefined : Number.parseInt(classRoomId, 10);
+      if (!cr || !Number.isFinite(cr) || cr <= 0) {
+        setFormError(t("students.form.classRequired"));
+        setSubmitting(false);
+        return;
+      }
+      if (registrationType === "first") {
+        if (
+          !previousSchool.trim() ||
+          !lastClassAttended.trim() ||
+          !lastTermYear.trim()
+        ) {
+          setFormError(t("students.form.previousSchoolFieldsRequired"));
+          setSubmitting(false);
+          return;
+        }
+      }
+      let previousGradesPayload: string | undefined;
+      if (registrationType === "first") {
+        const room = rooms.find((r) => r.id === cr);
+        const subs = room ? subjectsForClassRoom(room.name) : [];
+        if (subs.length === 0) {
+          setFormError(t("students.form.classRequired"));
+          setSubmitting(false);
+          return;
+        }
+        const normalizedMarks: Record<string, string> = {};
+        for (const s of subs) {
+          const raw = String(admissionMarks[s] ?? "").trim();
+          if (!raw) {
+            setFormError(t("students.form.admissionMarksRequired"));
+            setSubmitting(false);
+            return;
+          }
+          const n = parseOutOf100Mark(raw);
+          if (n === null) {
+            setFormError(t("students.form.admissionMarkInvalidNumber"));
+            setSubmitting(false);
+            return;
+          }
+          if (!isValidOutOf100Mark(n)) {
+            setFormError(t("students.form.admissionMarkInvalidRange"));
+            setSubmitting(false);
+            return;
+          }
+          normalizedMarks[s] = formatOutOf100ForStorage(n);
+        }
+        if (!previousGrades.trim()) {
+          setFormError(t("students.form.previousGradesRequiredAdmission"));
+          setSubmitting(false);
+          return;
+        }
+        previousGradesPayload = buildAdmissionMarksJson(
+          subs,
+          normalizedMarks,
+          previousGrades.trim(),
+        );
+      } else {
+        previousGradesPayload = undefined;
+      }
       const cc = countryCode.trim();
       const dist = district.trim();
       const created = await createStudent({
@@ -266,20 +381,20 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
         lastName: lastName.trim(),
         dateOfBirth: dateOfBirth.trim() || undefined,
         parentEmail: parentEmail.trim() || undefined,
-        classRoomId: Number.isFinite(cr) && cr! > 0 ? cr : undefined,
+        classRoomId: cr,
         gender: gender.trim() || undefined,
         sectionName: sectionName.trim() || undefined,
         nationality: nationality.trim() || undefined,
         countryCode: cc ? cc : undefined,
         district: dist || undefined,
         registrationType,
-        previousSchool: registrationType === "continuing" ? previousSchool.trim() : undefined,
+        previousSchool: registrationType === "first" ? previousSchool.trim() : undefined,
         previousSchoolLocation:
-          registrationType === "continuing" ? previousSchoolLocation.trim() : undefined,
+          registrationType === "first" ? previousSchoolLocation.trim() || undefined : undefined,
         lastClassAttended:
-          registrationType === "continuing" ? lastClassAttended.trim() : undefined,
-        lastTermYear: registrationType === "continuing" ? lastTermYear.trim() : undefined,
-        previousGrades: registrationType === "continuing" ? previousGrades.trim() : undefined,
+          registrationType === "first" ? lastClassAttended.trim() : undefined,
+        lastTermYear: registrationType === "first" ? lastTermYear.trim() : undefined,
+        previousGrades: previousGradesPayload,
         transferReason: registrationType === "continuing" && transferReason ? transferReason : undefined,
         parentAliveStatus: parentAliveStatus || undefined,
         parentFullName: parentFullName.trim() || undefined,
@@ -295,7 +410,7 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
         guardianName: guardianName.trim() || undefined,
         guardianPhone: guardianPhone.trim() || undefined,
       });
-      if (registrationType === "continuing") {
+      if (registrationType === "first") {
         if (!transferReportFile) {
           setFormError(t("students.form.transferReportRequired"));
           setSubmitting(false);
@@ -478,18 +593,6 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
               placeholder={t("students.form.medicalInfoPlaceholder")}
             />
           </label>
-          <label className="block text-xs font-semibold text-[#636e72]">
-            {t("students.form.section")}
-            <input
-              value={sectionName}
-              readOnly
-              className={`${fieldClass} mt-1`}
-            />
-            <span className="mt-1 block text-[11px] text-[#636e72]">
-              Section is auto-filled from selected class.
-            </span>
-          </label>
-
           <p className="col-span-full mt-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[#636e72]">
             {t("students.form.sectionRegistration")}
           </p>
@@ -501,14 +604,16 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
               onChange={(e) => {
                 const v = e.target.value as "first" | "continuing";
                 setRegistrationType(v);
-                if (v === "first") {
+                if (v === "continuing") {
                   setPreviousSchool("");
                   setPreviousSchoolLocation("");
                   setLastClassAttended("");
                   setLastTermYear("");
                   setPreviousGrades("");
-                  setTransferReason("");
                   setTransferReportFile(null);
+                  setAdmissionMarks({});
+                } else {
+                  setTransferReason("");
                 }
               }}
               className={`${fieldClass} mt-1`}
@@ -517,74 +622,7 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
               <option value="continuing">{t("students.form.registrationTransferIn")}</option>
             </select>
           </label>
-          <label className="block text-xs font-semibold text-[#636e72]">
-            {t("students.form.classCategory")} *
-            <select
-              required
-              value={classCategoryId}
-              onChange={(e) => {
-                setClassCategoryId(e.target.value);
-                setClassRoomId("");
-                setSectionName("");
-              }}
-              className={`${fieldClass} mt-1`}
-            >
-              <option value="">{t("students.form.classCategoryUnset")}</option>
-              {classCategories.map((c) => (
-                <option key={c.id} value={String(c.id)}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block text-xs font-semibold text-[#636e72]">
-            {t("students.form.classroom")} *
-            <select
-              required
-              value={classRoomId}
-              onChange={(e) => {
-                setClassRoomId(e.target.value);
-                setSectionName("");
-              }}
-              disabled={!classCategoryId}
-              className={`${fieldClass} mt-1 disabled:opacity-60`}
-            >
-              <option value="">
-                {!classCategoryId ? t("students.form.classroomPickCategory") : t("students.form.classroomUnset")}
-              </option>
-              {filteredRooms.map((r) => (
-                <option key={r.id} value={String(r.id)}>
-                  {r.name}
-                  {r.academicYear ? ` (${r.academicYear})` : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block text-xs font-semibold text-[#636e72]">
-            {t("students.form.section")}
-            <select
-              value={sectionName}
-              onChange={(e) => setSectionName(e.target.value)}
-              disabled={!classRoomId || sectionsLoading || sections.length === 0}
-              className={`${fieldClass} mt-1 disabled:opacity-60`}
-            >
-              <option value="">
-                {!classRoomId
-                  ? t("students.form.sectionPickClass")
-                  : sectionsLoading
-                    ? t("students.form.sectionLoading")
-                    : sections.length === 0
-                      ? t("students.form.sectionNoData")
-                      : t("students.form.section")}
-              </option>
-              {sections.map((s) => (
-                <option key={s.id} value={s.name}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          {registrationType === "continuing" ? (
+          {registrationType === "first" ? (
             <>
               <label className="block min-w-0 text-xs font-semibold text-[#636e72]">
                 {t("students.form.previousSchool")} *
@@ -623,7 +661,7 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
                   placeholder={t("students.form.lastTermYearPlaceholder")}
                 />
               </label>
-              <label className="block min-w-0 text-xs font-semibold text-[#636e72]">
+              <label className="block min-w-0 text-xs font-semibold text-[#636e72] sm:col-span-2 lg:col-span-3">
                 {t("students.form.previousGrades")} *
                 <input
                   required
@@ -632,25 +670,9 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
                   className={`${fieldClass} mt-1`}
                   placeholder={t("students.form.previousGradesPlaceholder")}
                 />
-              </label>
-              <label className="block min-w-0 text-xs font-semibold text-[#636e72]">
-                {t("students.form.transferReason")}
-                <select
-                  value={transferReason}
-                  onChange={(e) =>
-                    setTransferReason(
-                      e.target.value as "" | "relocation" | "discipline" | "better_education",
-                    )
-                  }
-                  className={`${fieldClass} mt-1`}
-                >
-                  <option value="">{t("students.form.transferReasonUnset")}</option>
-                  <option value="relocation">{t("students.form.transferReasonRelocation")}</option>
-                  <option value="discipline">{t("students.form.transferReasonDiscipline")}</option>
-                  <option value="better_education">
-                    {t("students.form.transferReasonBetterEducation")}
-                  </option>
-                </select>
+                <span className="mt-1 block text-[11px] font-normal text-[#636e72]">
+                  {t("students.form.previousGradesAdmissionHint")}
+                </span>
               </label>
               <label className="block text-xs font-semibold text-[#636e72] sm:col-span-2 lg:col-span-3">
                 {t("students.form.previousReportCard")} *
@@ -663,6 +685,122 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
                 />
               </label>
             </>
+          ) : (
+            <label className="block min-w-0 text-xs font-semibold text-[#636e72] sm:col-span-2 lg:col-span-3">
+              {t("students.form.transferReason")}
+              <select
+                value={transferReason}
+                onChange={(e) =>
+                  setTransferReason(
+                    e.target.value as "" | "relocation" | "discipline" | "better_education",
+                  )
+                }
+                className={`${fieldClass} mt-1`}
+              >
+                <option value="">{t("students.form.transferReasonUnset")}</option>
+                <option value="relocation">{t("students.form.transferReasonRelocation")}</option>
+                <option value="discipline">{t("students.form.transferReasonDiscipline")}</option>
+                <option value="better_education">
+                  {t("students.form.transferReasonBetterEducation")}
+                </option>
+              </select>
+            </label>
+          )}
+          <label className="block min-w-0 text-xs font-semibold text-[#636e72] sm:col-span-2 lg:col-span-3">
+            {t("students.form.classroom")} *
+            <select
+              required
+              value={classRoomId}
+              onChange={(e) => setClassRoomId(e.target.value)}
+              className={`${fieldClass} mt-1`}
+            >
+              <option value="">{t("students.form.classroomUnset")}</option>
+              {kindergartenRooms.length > 0 ? (
+                <optgroup label={t("students.form.classGroupKindergarten")}>
+                  {kindergartenRooms.map((r) => (
+                    <option key={r.id} value={String(r.id)}>
+                      {r.name}
+                      {r.academicYear ? ` (${r.academicYear})` : ""}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
+              {lowerPrimaryRooms.length > 0 ? (
+                <optgroup label={t("students.form.classGroupLowerPrimary")}>
+                  {lowerPrimaryRooms.map((r) => (
+                    <option key={r.id} value={String(r.id)}>
+                      {r.name}
+                      {r.academicYear ? ` (${r.academicYear})` : ""}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
+              {upperPrimaryRooms.length > 0 ? (
+                <optgroup label={t("students.form.classGroupUpperPrimary")}>
+                  {upperPrimaryRooms.map((r) => (
+                    <option key={r.id} value={String(r.id)}>
+                      {r.name}
+                      {r.academicYear ? ` (${r.academicYear})` : ""}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
+              {otherRooms.map((r) => (
+                <option key={r.id} value={String(r.id)}>
+                  {r.name}
+                  {r.academicYear ? ` (${r.academicYear})` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="block min-w-0 text-xs font-semibold text-[#636e72] sm:col-span-2 lg:col-span-3">
+            <span className="block">{t("students.form.section")}</span>
+            <div
+              className={`${fieldClass} mt-1 flex min-h-[42px] items-center text-sm font-medium text-[#2d3436]`}
+              aria-live="polite"
+            >
+              {!classRoomId
+                ? t("students.form.sectionPickClass")
+                : sectionsLoading
+                  ? t("students.form.sectionLoading")
+                  : sectionName || "—"}
+            </div>
+            <span className="mt-1 block text-[11px] font-normal text-[#636e72]">
+              {t("students.form.sectionAutoHint")}
+            </span>
+          </div>
+          {registrationType === "first" && classRoomId && selectedRoom ? (
+            <div className="col-span-full rounded-xl border border-[#ebe4d9]/90 bg-[#faf9f7]/80 p-4">
+              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#636e72]">
+                {t("students.form.admissionMarksSection")}
+              </p>
+              <p className="mt-1 text-xs text-[#636e72]">{t("students.form.admissionMarksHint")}</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {subjectsForClassRoom(selectedRoom.name).map((subj) => (
+                  <label key={subj} className="block text-xs font-semibold text-[#636e72]">
+                    {subj}
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <input
+                        required
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.01}
+                        inputMode="decimal"
+                        value={admissionMarks[subj] ?? ""}
+                        onChange={(e) =>
+                          setAdmissionMarks((m) => ({ ...m, [subj]: e.target.value }))
+                        }
+                        className={`${fieldClass} min-w-0 flex-1`}
+                        placeholder={t("students.form.admissionMarkPlaceholder")}
+                        autoComplete="off"
+                      />
+                      <span className="shrink-0 text-xs font-semibold text-[#636e72]">%</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
           ) : null}
           <label className="block min-w-0 text-xs font-semibold text-[#636e72]">
             {t("students.form.nationality")} *
@@ -900,7 +1038,19 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
             </label>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2 pt-2">
+        <div className="flex flex-wrap items-center gap-2 pt-2">
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={() => {
+              resetForm();
+              setFormError(null);
+              setFormSuccess(null);
+            }}
+            className="rounded-full bg-[#faf7f0] px-6 py-2.5 text-sm font-semibold text-[#636e72] ring-1 ring-[#ebe4d9] transition hover:bg-[#f0ebe3] disabled:opacity-60"
+          >
+            {t("students.form.cancelAdmission")}
+          </button>
           <button
             type="submit"
             disabled={submitting}
