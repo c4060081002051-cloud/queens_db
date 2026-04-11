@@ -14,11 +14,14 @@ export type SchoolExpenseApiRow = {
   status: "Paid" | "Due";
   email: string;
   date: string;
+  /** ISO timestamp when the expense row was recorded (for daily ledger time column). */
+  recordedAt: string;
 };
 
 export function schoolExpenseToApiRow(
   row: InstanceType<typeof SchoolExpense>,
 ): SchoolExpenseApiRow {
+  const created = row.createdAt;
   return {
     id: row.referenceCode,
     type: row.expenseType,
@@ -27,5 +30,6 @@ export function schoolExpenseToApiRow(
     status: row.status.toLowerCase() === "paid" ? "Paid" : "Due",
     email: row.contactEmail,
     date: safeLocaleDate(row.expenseDate),
+    recordedAt: created instanceof Date && !Number.isNaN(created.getTime()) ? created.toISOString() : "",
   };
 }

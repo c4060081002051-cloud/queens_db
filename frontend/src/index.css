@@ -1,23 +1,24 @@
 @import "tailwindcss";
 
-/* Soft UI palette — human-centered SaaS / neumorphic base */
+/* Soft UI palette — cool paper neutrals, teal + sky accents */
 @layer base {
   :root {
-    --cream: #f5f0e6;
-    --cream-light: #faf7f0;
-    --cream-mid: #ebe4d9;
-    --cream-shadow: rgba(200, 188, 170, 0.45);
-    --cream-highlight: rgba(255, 255, 255, 0.92);
-    --sage: #b8d8ba;
-    --sage-mid: #9dc6a0;
-    --sage-deep: #6a9570;
-    --sky: #b9d9eb;
-    --sky-mid: #9cc9e0;
-    --sky-deep: #5a8faf;
-    --blush: #f7d1cd;
-    --blush-deep: #e8a8a2;
-    --ink: #2d3436;
-    --ink-muted: #636e72;
+    color-scheme: light;
+    --cream: #eef2f5;
+    --cream-light: #f7f9fb;
+    --cream-mid: #e2e8ef;
+    --cream-shadow: rgba(100, 116, 139, 0.22);
+    --cream-highlight: rgba(255, 255, 255, 0.94);
+    --sage: #99e1d0;
+    --sage-mid: #5eead4;
+    --sage-deep: #0f766e;
+    --sky: #bae6fd;
+    --sky-mid: #7dd3fc;
+    --sky-deep: #0369a1;
+    --blush: #fecdd3;
+    --blush-deep: #fb7185;
+    --ink: #1e293b;
+    --ink-muted: #64748b;
   }
 
   body {
@@ -57,27 +58,27 @@
 /* Neumorphic surfaces */
 @layer components {
   .neo-app-bg {
-    background: linear-gradient(160deg, var(--cream-light) 0%, var(--cream) 40%, #efe8dc 100%);
+    background: linear-gradient(160deg, var(--cream-light) 0%, var(--cream) 40%, #dde5ec 100%);
   }
 
   .neo-sidebar {
-    background: linear-gradient(180deg, #e8f0e9 0%, #dce8de 45%, #d2e0d4 100%);
+    background: linear-gradient(180deg, #e4f4f1 0%, #d8ece8 45%, #cce4df 100%);
     box-shadow:
       inset -1px 0 0 var(--cream-highlight),
-      6px 0 28px rgba(106, 149, 112, 0.12);
+      6px 0 28px rgba(15, 118, 110, 0.1);
   }
 
   .neo-header {
-    background: linear-gradient(180deg, rgba(255, 252, 248, 0.95) 0%, rgba(245, 240, 230, 0.92) 100%);
+    background: linear-gradient(180deg, rgba(247, 249, 251, 0.96) 0%, rgba(238, 242, 245, 0.93) 100%);
     box-shadow:
-      0 2px 10px rgba(200, 188, 170, 0.2),
+      0 2px 10px rgba(100, 116, 139, 0.12),
       0 1px 0 var(--cream-highlight);
     backdrop-filter: blur(10px);
   }
 
   .neo-footer {
     background: linear-gradient(180deg, var(--cream-light), var(--cream-mid));
-    box-shadow: 0 -3px 12px rgba(200, 188, 170, 0.2);
+    box-shadow: 0 -3px 12px rgba(100, 116, 139, 0.12);
   }
 
   .neo-card {
@@ -90,7 +91,7 @@
 
   .neo-card-elevated {
     border-radius: 1.35rem;
-    background: linear-gradient(145deg, #fffcf7, #f2ebe0);
+    background: linear-gradient(145deg, #fbfcfd, #e8eef4);
     box-shadow:
       8px 8px 20px var(--cream-shadow),
       -6px -6px 18px var(--cream-highlight);
@@ -114,10 +115,10 @@
   }
 
   .neo-nav-group-active {
-    background: linear-gradient(145deg, #cde8cf, #b8d8ba);
+    background: linear-gradient(145deg, #b5f0e4, var(--sage));
     color: var(--ink);
     box-shadow:
-      3px 3px 10px rgba(120, 150, 125, 0.35),
+      3px 3px 10px rgba(15, 118, 110, 0.22),
       -2px -2px 8px var(--cream-highlight);
   }
 
@@ -135,25 +136,25 @@
   }
 
   .neo-nav-sub {
-    border-left: 3px solid rgba(157, 198, 160, 0.65);
+    border-left: 3px solid color-mix(in srgb, var(--sage-deep) 45%, transparent);
   }
 
   .neo-nav-item:hover {
-    background: rgba(185, 217, 235, 0.35);
+    background: color-mix(in srgb, var(--sky) 38%, transparent);
     color: var(--ink);
   }
 
   .neo-logo {
-    background: linear-gradient(145deg, var(--sage), var(--sage-mid));
-    color: var(--ink);
+    background: linear-gradient(145deg, var(--sage-mid), var(--sage-deep));
+    color: #f8fafc;
     box-shadow:
-      4px 4px 10px rgba(120, 150, 125, 0.4),
+      4px 4px 10px rgba(15, 118, 110, 0.28),
       -2px -2px 6px var(--cream-highlight);
   }
 
   .neo-dropdown {
     border-radius: 1.1rem;
-    background: linear-gradient(160deg, #fffcf8, var(--cream));
+    background: linear-gradient(160deg, var(--cream-light), var(--cream));
     box-shadow:
       10px 10px 28px var(--cream-shadow),
       -4px -4px 16px var(--cream-highlight);
@@ -167,7 +168,7 @@
   }
 
   .neo-icon-btn:hover {
-    background: rgba(185, 217, 235, 0.45);
+    background: color-mix(in srgb, var(--sky) 42%, transparent);
     box-shadow:
       2px 2px 6px var(--cream-shadow),
       -2px -2px 6px var(--cream-highlight);
@@ -182,38 +183,38 @@
 
   /* Dark theme — scoped to admin shell (class set by ThemeProvider usage in AdminLayout) */
   .theme-dark {
-    --cream: #1e242c;
-    --cream-light: #262d36;
-    --cream-mid: #323b47;
-    --cream-shadow: rgba(0, 0, 0, 0.45);
-    --cream-highlight: rgba(255, 255, 255, 0.06);
-    --sage: #4a6b4e;
-    --sage-mid: #5d8062;
-    --sage-deep: #8fb892;
-    --sky: #3d5a70;
-    --sky-mid: #4a6f8a;
-    --sky-deep: #7eb8d8;
-    --blush: #6b4545;
-    --blush-deep: #a87878;
-    --ink: #e8ecf0;
-    --ink-muted: #9aa5b0;
+    --cream: #0f172a;
+    --cream-light: #1e293b;
+    --cream-mid: #334155;
+    --cream-shadow: rgba(0, 0, 0, 0.5);
+    --cream-highlight: rgba(255, 255, 255, 0.07);
+    --sage: #115e59;
+    --sage-mid: #0d9488;
+    --sage-deep: #5eead4;
+    --sky: #164e63;
+    --sky-mid: #0e7490;
+    --sky-deep: #38bdf8;
+    --blush: #7f1d1d;
+    --blush-deep: #f87171;
+    --ink: #f1f5f9;
+    --ink-muted: #94a3b8;
     color-scheme: dark;
   }
 
   .theme-dark.neo-app-bg {
-    background: linear-gradient(160deg, var(--cream-light) 0%, var(--cream) 45%, #1a1f26 100%);
+    background: linear-gradient(160deg, var(--cream-light) 0%, var(--cream) 45%, #0c1222 100%);
   }
 
   .theme-dark .neo-sidebar {
-    background: linear-gradient(180deg, #2a323c 0%, #242b34 50%, #1e252d 100%);
+    background: linear-gradient(180deg, #134e4a 0%, #0f2f2c 40%, #0f172a 100%);
     box-shadow:
-      inset -1px 0 0 rgba(255, 255, 255, 0.05),
-      6px 0 28px rgba(0, 0, 0, 0.35);
+      inset -1px 0 0 rgba(255, 255, 255, 0.06),
+      6px 0 28px rgba(0, 0, 0, 0.4);
     border-color: rgba(255, 255, 255, 0.06);
   }
 
   .theme-dark .neo-header {
-    background: linear-gradient(180deg, rgba(38, 45, 54, 0.98) 0%, rgba(30, 36, 44, 0.95) 100%);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.96) 100%);
     box-shadow:
       0 2px 10px rgba(0, 0, 0, 0.35),
       0 1px 0 rgba(255, 255, 255, 0.05);
@@ -226,17 +227,19 @@
   }
 
   .theme-dark .neo-dropdown {
-    background: linear-gradient(160deg, #2c343e, #262d36);
+    background: linear-gradient(160deg, #1e293b, #0f172a);
     box-shadow:
       10px 10px 28px rgba(0, 0, 0, 0.45),
       -4px -4px 16px rgba(255, 255, 255, 0.04);
   }
 
-  .theme-dark [class*="#2d3436"] {
+  .theme-dark [class*="#2d3436"],
+  .theme-dark [class*="#1e293b"] {
     color: var(--ink) !important;
   }
 
-  .theme-dark [class*="#636e72"] {
+  .theme-dark [class*="#636e72"],
+  .theme-dark [class*="#64748b"] {
     color: var(--ink-muted) !important;
   }
 

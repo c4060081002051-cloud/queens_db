@@ -32,6 +32,10 @@ import {
   type TeachingSection,
   type NonTeachingCategory,
 } from "./components/staff/StaffSectionPage";
+import {
+  ClassesSectionPage,
+  type ClassesSection,
+} from "./components/classes/ClassesSectionPage";
 import { useI18n } from "./i18n/I18nProvider";
 import { formatShortAgo } from "./utils/formatShortAgo";
 
@@ -433,12 +437,13 @@ type InboxScreen =
 type PersistedViewState = {
   settingsPanel: string | null;
   inboxScreen: InboxScreen;
-  mainView: "dashboard" | "expenses" | "students" | "staff" | "finance";
+  mainView: "dashboard" | "expenses" | "students" | "staff" | "finance" | "classes";
   studentSection: StudentNavSection;
   staffSection: StaffNavSection;
   teachingSection: TeachingSection;
   nonTeachingCategory: NonTeachingCategory;
   financeSection: FinanceSection;
+  classesSection: ClassesSection;
   selectedClassName: string | null;
 };
 
@@ -451,7 +456,8 @@ function readPersistedViewState(): PersistedViewState | null {
       parsed.mainView === "expenses" ||
       parsed.mainView === "students" ||
       parsed.mainView === "staff" ||
-      parsed.mainView === "finance"
+      parsed.mainView === "finance" ||
+      parsed.mainView === "classes"
         ? parsed.mainView
         : "dashboard";
     const studentSection =
@@ -489,6 +495,15 @@ function readPersistedViewState(): PersistedViewState | null {
       parsed.financeSection === "overview"
         ? parsed.financeSection
         : "overview";
+    const classesSection: ClassesSection =
+      parsed.classesSection === "all_classes" ||
+      parsed.classesSection === "sections_streams" ||
+      parsed.classesSection === "class_students" ||
+      parsed.classesSection === "class_teachers" ||
+      parsed.classesSection === "class_categories" ||
+      parsed.classesSection === "class_reports"
+        ? parsed.classesSection
+        : "all_classes";
     const inboxScreen: InboxScreen =
       parsed.inboxScreen?.screen === "list" &&
       (parsed.inboxScreen.kind === "notifications" || parsed.inboxScreen.kind === "messages")
@@ -508,6 +523,7 @@ function readPersistedViewState(): PersistedViewState | null {
       teachingSection,
       nonTeachingCategory,
       financeSection,
+      classesSection,
       selectedClassName:
         typeof parsed.selectedClassName === "string" ? parsed.selectedClassName : null,
     };
@@ -548,7 +564,7 @@ export function Dashboard({
   const [dashLoading, setDashLoading] = useState(false);
   const [dashError, setDashError] = useState<string | null>(null);
   const [mainView, setMainView] = useState<
-    "dashboard" | "expenses" | "students" | "staff" | "finance"
+    "dashboard" | "expenses" | "students" | "staff" | "finance" | "classes"
   >(
     initialView?.mainView ?? "dashboard",
   );
@@ -566,6 +582,9 @@ export function Dashboard({
   );
   const [financeSection, setFinanceSection] = useState<FinanceSection>(
     initialView?.financeSection ?? "overview",
+  );
+  const [classesSection, setClassesSection] = useState<ClassesSection>(
+    initialView?.classesSection ?? "all_classes",
   );
   const [selectedClassName, setSelectedClassName] = useState<string | null>(
     initialView?.selectedClassName ?? null,
@@ -623,13 +642,14 @@ export function Dashboard({
         teachingSection,
         nonTeachingCategory,
         financeSection,
+        classesSection,
         selectedClassName,
       };
       sessionStorage.setItem(DASHBOARD_VIEW_STATE_KEY, JSON.stringify(value));
     } catch {
       // Ignore storage failures (e.g. privacy mode/storage disabled).
     }
-  }, [settingsPanel, inboxScreen, mainView, studentSection, staffSection, teachingSection, nonTeachingCategory, financeSection, selectedClassName]);
+  }, [settingsPanel, inboxScreen, mainView, studentSection, staffSection, teachingSection, nonTeachingCategory, financeSection, classesSection, selectedClassName]);
 
   const directoryCards = buildDirectoryStatCards(dash?.stats ?? null, dashLoading);
   const learners = dash?.learners ?? [];
@@ -720,6 +740,13 @@ export function Dashboard({
       onSelectClassList={(className) => {
         setSettingsPanel(null);
         setInboxScreen({ screen: "home" });
+        setSelectedClassName(className);
+        setMainView("students");
+        setStudentSection("all");
+      }}
+      onSelectClassSection={(section) => {
+        setSettingsPanel(null);
+        setInboxScreen({ screen: "home" });
         setMainView("classes");
         setClassesSection(section);
       }}
@@ -777,13 +804,16 @@ export function Dashboard({
             section={financeSection}
             onChangeSection={setFinanceSection}
           />
+        ) : mainView === "classes" ? (
+          <ClassesSectionPage section={classesSection} />
         ) : null}
         {settingsPanel === "modes" ||
         inboxScreen.screen !== "home" ||
         mainView === "expenses" ||
         mainView === "students" ||
         mainView === "staff" ||
-        mainView === "finance" ? null : (
+        mainView === "finance" ||
+        mainView === "classes" ? null : (
           <>
         {profileError ? (
           <div

@@ -16,20 +16,26 @@ export function createMeExpensesRouter() {
     try {
       const qRaw =
         typeof req.query.q === "string" ? req.query.q.trim() : "";
+      const onDateRaw =
+        typeof req.query.onDate === "string" ? req.query.onDate.trim() : "";
+      const onDate = /^\d{4}-\d{2}-\d{2}$/.test(onDateRaw) ? onDateRaw : null;
+
       const sortKey = req.query.sortBy;
       const sortColumn =
         sortKey === "id"
           ? "reference_code"
           : sortKey === "status"
             ? "status"
-            : "expense_date";
+            : sortKey === "recorded"
+              ? "createdAt"
+              : "expense_date";
       const sortDir = req.query.sortDir === "asc" ? "ASC" : "DESC";
       const lim = Number.parseInt(String(req.query.limit ?? "100"), 10);
       const limit = Number.isFinite(lim)
         ? Math.min(500, Math.max(1, lim))
         : 100;
 
-      let where: WhereOptions<SchoolExpense> = {};
+      let qWhere: WhereOptions<SchoolExpense> | null = null;
       if (qRaw.length > 0) {
         const simple = sanitizeLikeFragment(qRaw);
         const iso = parseQueryToIsoDate(qRaw);
@@ -54,7 +60,18 @@ export function createMeExpensesRouter() {
         if (or.length === 0) {
           return res.json({ items: [] });
         }
-        where = { [Op.or]: or };
+        qWhere = { [Op.or]: or };
+      }
+
+      let where: WhereOptions<SchoolExpense>;
+      if (onDate && qWhere) {
+        where = { [Op.and]: [{ expenseDate: onDate }, qWhere] };
+      } else if (onDate) {
+        where = { expenseDate: onDate };
+      } else if (qWhere) {
+        where = qWhere;
+      } else {
+        where = {};
       }
 
       const rows = await SchoolExpense.findAll({

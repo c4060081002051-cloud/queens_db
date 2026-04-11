@@ -10,6 +10,7 @@ import { localeLabels, type Locale } from "../../i18n/messages";
 import { useTheme } from "../../theme/ThemeProvider";
 import type { InboxItem } from "./headerInboxDemo";
 import { HeaderInboxDropdown } from "./HeaderInboxDropdown";
+import type { ClassesSection } from "../classes/ClassesSectionPage";
 
 export type AdminUser = {
   sub: string;
@@ -52,6 +53,8 @@ type AdminLayoutProps = {
   ) => void;
   /** Open class-specific list page. */
   onSelectClassList?: (className: string) => void;
+  /** Classes hub: open a section tab (all classes, streams, etc.). */
+  onSelectClassSection?: (section: ClassesSection) => void;
   /** Finance hub: open finance landing or a specific section page. */
   onSelectFinanceSection?: (
     section:
@@ -358,6 +361,7 @@ type NavLeaf = {
     | "bursery"
     | "staff_payment"
     | "finance_summary";
+  classSection?: ClassesSection;
 };
 
 type NavGroup = { id: string; title: string; icon: NavIcon; items: NavLeaf[] };
@@ -520,6 +524,7 @@ export function AdminLayout({
   onSelectTeachingSection,
   onSelectNonTeachingCategory,
   onSelectClassList,
+  onSelectClassSection,
   onSelectFinanceSection,
   onAccountUpdated,
 }: AdminLayoutProps) {
@@ -919,6 +924,9 @@ export function AdminLayout({
                                   if (item.financeSection) {
                                     onSelectFinanceSection?.(item.financeSection);
                                   }
+                                  if (item.classSection) {
+                                    onSelectClassSection?.(item.classSection);
+                                  }
                                   setSidebarOpen(false);
                                 }}
                                 className="neo-nav-item flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] font-medium leading-snug text-[#636e72]"
@@ -939,6 +947,7 @@ export function AdminLayout({
                           );
                         })}
                       </ul>
+                    )
                   ) : null}
                 </div>
               );

@@ -160,6 +160,7 @@ export class SchoolExpense extends Model {
   declare status: string;
   declare contactEmail: string;
   declare expenseDate: string;
+  /** When the row was inserted (for intra-day ordering on daily finance views). */
   declare readonly createdAt: Date;
 }
 

@@ -182,6 +182,29 @@ export function NewAdmissionForm({ onCreated }: NewAdmissionFormProps) {
     setSectionName(inferSectionFromClassroomName(room.name));
   }, [classRoomId, rooms]);
 
+  useEffect(() => {
+    const id = Number.parseInt(classRoomId, 10);
+    if (!Number.isFinite(id) || id <= 0) {
+      setSections([]);
+      return;
+    }
+    let cancelled = false;
+    setSectionsLoading(true);
+    void fetchClassSections(id)
+      .then((list) => {
+        if (!cancelled) setSections(list);
+      })
+      .catch(() => {
+        if (!cancelled) setSections([]);
+      })
+      .finally(() => {
+        if (!cancelled) setSectionsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [classRoomId]);
+
   const resetForm = () => {
     setFirstName("");
     setMiddleName("");

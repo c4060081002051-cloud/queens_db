@@ -271,6 +271,11 @@ export function StudentsListPanel({
       ) : null}
       {profileCard ? null : (
       <section className="overflow-hidden rounded-2xl border border-[#ebe4d9] bg-[#fffcf7] shadow-[6px_8px_24px_rgba(45,52,54,0.08)]">
+        {error ? (
+          <div className="border-b border-[#f7d1cd] bg-[#fff7f5] px-5 py-3 text-sm text-[#a9332a]" role="alert">
+            {error}
+          </div>
+        ) : null}
         <div className="flex flex-col gap-4 border-b border-[#ebe4d9] bg-gradient-to-r from-[#f4faf5] via-[#f8f9f6] to-[#eef6f9] px-5 py-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
           <div className="min-w-0 shrink-0">
             {title.trim() ? (

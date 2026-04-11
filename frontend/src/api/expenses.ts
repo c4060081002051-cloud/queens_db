@@ -7,17 +7,19 @@ async function readJson<T>(res: Response): Promise<T> {
   return JSON.parse(text) as T;
 }
 
-export type ExpenseSortBy = "date" | "id" | "status";
+export type ExpenseSortBy = "date" | "id" | "status" | "recorded";
 export type ExpenseSortDir = "asc" | "desc";
 
 export async function fetchExpenses(opts: {
   q?: string;
+  onDate?: string;
   sortBy?: ExpenseSortBy;
   sortDir?: ExpenseSortDir;
   limit?: number;
 }): Promise<DashboardExpenseRow[]> {
   const p = new URLSearchParams();
   if (opts.q?.trim()) p.set("q", opts.q.trim());
+  if (opts.onDate?.trim()) p.set("onDate", opts.onDate.trim());
   p.set("sortBy", opts.sortBy ?? "date");
   p.set("sortDir", opts.sortDir ?? "desc");
   if (opts.limit != null) p.set("limit", String(opts.limit));

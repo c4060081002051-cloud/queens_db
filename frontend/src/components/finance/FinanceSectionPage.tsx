@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchStudents, type StudentApiRow } from "../../api/students";
+import { formatCurrencyUGX, formatReceiptDate } from "./utils";
+import { DailyReportPage } from "./DailyReportPage";
+import { DebtorsReportPage } from "./DebtorsReportPage";
+import { BursaryPage } from "./BursaryPage";
+import { StaffPaymentPage } from "./StaffPaymentPage";
+import { FinanceSummaryPage } from "./FinanceSummaryPage";
 
 export type FinanceSection =
   | "overview"
@@ -20,34 +26,7 @@ const sectionTitle: Record<FinanceSection, string> = {
   finance_summary: "Finance Summary Page",
 };
 
-function FinancePlaceholder({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <section className="neo-card p-6">
-      <h2 className="text-xl font-bold tracking-tight text-[#2d3436]">{title}</h2>
-      <p className="mt-2 max-w-3xl text-sm text-[#636e72]">{description}</p>
-    </section>
-  );
-}
 
-function formatCurrencyUGX(value: number): string {
-  return `${new Intl.NumberFormat("en-UG", { maximumFractionDigits: 0 }).format(value)} UGX`;
-}
-
-function formatReceiptDate(value: Date): string {
-  return value.toLocaleString("en-UG", {
-    year: "numeric",
-    month: "long",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 function studentLabel(student: StudentApiRow): string {
   return `${student.fullName} (${student.admissionNumber})`;
@@ -444,16 +423,57 @@ export function FinanceSectionPage({
     );
   }
 
-  if (section !== "overview") {
+  if (section === "daily_report") {
     return (
       <div className="min-w-0 space-y-4">
         <header className="border-b border-[#ebe4d9]/80 pb-4">
-          <h1 className="text-xl font-bold tracking-tight text-[#2d3436]">{sectionTitle[section]}</h1>
+          <h1 className="text-xl font-bold tracking-tight text-[#2d3436]">{sectionTitle.daily_report}</h1>
         </header>
-        <FinancePlaceholder
-          title={sectionTitle[section]}
-          description="This section is ready for your finance workflows and reports."
-        />
+        <DailyReportPage />
+      </div>
+    );
+  }
+
+  if (section === "debtors_report") {
+    return (
+      <div className="min-w-0 space-y-4">
+        <header className="border-b border-[#ebe4d9]/80 pb-4">
+          <h1 className="text-xl font-bold tracking-tight text-[#2d3436]">{sectionTitle.debtors_report}</h1>
+        </header>
+        <DebtorsReportPage />
+      </div>
+    );
+  }
+
+  if (section === "bursery") {
+    return (
+      <div className="min-w-0 space-y-4">
+        <header className="border-b border-[#ebe4d9]/80 pb-4">
+          <h1 className="text-xl font-bold tracking-tight text-[#2d3436]">{sectionTitle.bursery}</h1>
+        </header>
+        <BursaryPage />
+      </div>
+    );
+  }
+
+  if (section === "staff_payment") {
+    return (
+      <div className="min-w-0 space-y-4">
+        <header className="border-b border-[#ebe4d9]/80 pb-4">
+          <h1 className="text-xl font-bold tracking-tight text-[#2d3436]">{sectionTitle.staff_payment}</h1>
+        </header>
+        <StaffPaymentPage />
+      </div>
+    );
+  }
+
+  if (section === "finance_summary") {
+    return (
+      <div className="min-w-0 space-y-4">
+        <header className="border-b border-[#ebe4d9]/80 pb-4">
+          <h1 className="text-xl font-bold tracking-tight text-[#2d3436]">{sectionTitle.finance_summary}</h1>
+        </header>
+        <FinanceSummaryPage />
       </div>
     );
   }

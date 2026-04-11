@@ -59,6 +59,8 @@ export type DashboardExpenseRow = {
   email: string;
   /** DD/MM/YYYY */
   date: string;
+  /** ISO time when the expense was recorded (optional for older API responses). */
+  recordedAt?: string;
 };
 
 export type DashboardSocialTile = {
